@@ -15,7 +15,7 @@ if (!isset($sorts[$sort])) {
     $sort = 'topScorers';
 }
 $teams = ccl_team_map();
-uasort($teams, static fn($a, $b) => tr_compare($a['name'], $b['name']));
+uasort($teams, 'compare_team_names');
 $teamId = qs_int('takim');
 if ($teamId && !isset($teams[$teamId])) {
     $teamId = 0;
@@ -36,9 +36,11 @@ $total = $result['count'];
 $pages = max(1, (int) ceil($total / $perPage));
 [$sortLabel, $sortField, $sortShort] = $sorts[$sort];
 
-$link = static fn(array $over = []) => url('istatistikler.php', array_merge([
-    'sort' => $sort, 'takim' => $teamId ?: null, 'ara' => $search ?: null,
-], $over));
+$link = static function (array $over = []) use ($sort, $teamId, $search) {
+    return url('istatistikler.php', array_merge([
+        'sort' => $sort, 'takim' => $teamId ?: null, 'ara' => $search ?: null,
+    ], $over));
+};
 
 $page = ['title' => 'Oyuncu İstatistikleri', 'nav' => 'stats'];
 require __DIR__ . '/inc/header.php';

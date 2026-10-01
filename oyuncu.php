@@ -46,13 +46,17 @@ foreach (ccl_player_events($id) as $ev) {
         continue;
     }
     $info = event_info((string) ($ev['olay_kodu'] ?? ''));
-    $perMatch[$mid] ??= ['goal' => 0, 'assist' => 0, 'yellow' => 0, 'red' => 0, 'save' => 0, 'events' => []];
+    if (!isset($perMatch[$mid])) {
+        $perMatch[$mid] = ['goal' => 0, 'assist' => 0, 'yellow' => 0, 'red' => 0, 'save' => 0];
+    }
     if (isset($perMatch[$mid][$info['type']])) {
         $perMatch[$mid][$info['type']]++;
     }
 }
 // En yeni maç üstte
-uksort($perMatch, static fn($a, $b) => strcmp(match_sort_key($seasonMatches[$b]), match_sort_key($seasonMatches[$a])));
+uksort($perMatch, static function ($a, $b) use ($seasonMatches) {
+    return strcmp(match_sort_key($seasonMatches[$b]), match_sort_key($seasonMatches[$a]));
+});
 
 $cards = [
     ['Maç', $stats['matchesPlayed'] ?? 0],

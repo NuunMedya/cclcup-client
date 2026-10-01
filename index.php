@@ -10,7 +10,7 @@ $valuable = ccl_player_stats(['sort' => 'mostValuable', 'limit' => 5])['players'
 
 $live = array_values(array_filter($matches, 'match_is_live'));
 $played = array_values(array_filter($matches, 'match_is_played'));
-$upcoming = array_values(array_filter($matches, static fn($m) => !match_is_played($m) && !match_is_live($m)));
+$upcoming = array_values(array_filter($matches, 'match_is_upcoming'));
 $recent = array_reverse(array_slice($played, -6));
 $next = array_slice($upcoming, 0, 6);
 

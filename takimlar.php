@@ -7,7 +7,7 @@ foreach ($standings as $i => $r) {
     $rowsById[(int) $r['team_id']] = $r + ['rank' => $i + 1];
 }
 $teams = ccl_team_map();
-uasort($teams, static fn($a, $b) => tr_compare($a['name'], $b['name']));
+uasort($teams, 'compare_team_names');
 
 $page = ['title' => 'Takımlar', 'nav' => 'teams'];
 require __DIR__ . '/inc/header.php';

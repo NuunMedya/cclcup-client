@@ -6,7 +6,9 @@ $groups = $groupData['groups'];
 $showOverall = !$groups || ($groupData['settings']['show_overall_standings'] ?? true);
 
 // Yalnızca puan tablosu olan (lig usulü "grup") gruplar sekme olarak gösterilir; "etap" eşleşmelerdir.
-$tableGroups = array_values(array_filter($groups, static fn($g) => ($g['group_kind'] ?? 'grup') === 'grup'));
+$tableGroups = array_values(array_filter($groups, static function ($g) {
+    return ($g['group_kind'] ?? 'grup') === 'grup';
+}));
 
 $selected = qs('grup') ?: ($showOverall ? 'genel' : (string) ($tableGroups[0]['id'] ?? 'genel'));
 $selectedGroup = null;

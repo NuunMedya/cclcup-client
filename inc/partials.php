@@ -117,7 +117,9 @@ function render_standings_table(array $rows, bool $compact = false, int $highlig
 /** Liderlik listesi (gol krallığı vb.) */
 function render_leader_list(array $players, string $field, string $unit, int $limit = 5): string
 {
-    $players = array_values(array_filter($players, static fn($p) => (float) ($p[$field] ?? 0) > 0));
+    $players = array_values(array_filter($players, static function ($p) use ($field) {
+        return (float) ($p[$field] ?? 0) > 0;
+    }));
     if (!$players) {
         return '<div class="empty-state small"><p>Henüz veri yok.</p></div>';
     }

@@ -22,12 +22,14 @@ function ccl_config(?string $key = null)
  * GET isteği atar, JSON çözer. Hata durumunda ApiError fırlatır
  * (elde süresi geçmiş önbellek yoksa).
  */
-function api_get(string $path, array $params = [], ?int $ttl = null)
+function api_get(string $path, array $params = [], $ttl = null)
 {
     $cfg = ccl_config();
-    $ttl = $ttl ?? $cfg['cache_ttl'];
+    $ttl = $ttl === null ? (int) $cfg['cache_ttl'] : (int) $ttl;
 
-    $params = array_filter($params, static fn($v) => $v !== null && $v !== '');
+    $params = array_filter($params, static function ($v) {
+        return $v !== null && $v !== '';
+    });
     ksort($params);
     $url = $cfg['api_base'] . '/' . ltrim($path, '/');
     if ($params) {
@@ -49,7 +51,7 @@ function api_get(string $path, array $params = [], ?int $ttl = null)
             throw new ApiError('Geçersiz yanıt: ' . $path);
         }
         if ($ttl > 0 && is_dir($cfg['cache_dir']) && is_writable($cfg['cache_dir'])) {
-            $tmp = $cacheFile . '.' . getmypid() . '.tmp';
+            $tmp = $cacheFile . '.' . uniqid('', true) . '.tmp';
             if (@file_put_contents($tmp, $body) !== false) {
                 @rename($tmp, $cacheFile);
             }
@@ -114,12 +116,12 @@ function http_fetch(string $url, int $timeout): string
     return (string) $body;
 }
 
-/** Hata fırlatmak yerine varsayılan değer döndüren sarmalayıcı. */
-function api_try(callable $fn, $default = null)
+/** api_get'in hata fırlatmak yerine varsayılan değer döndüren hâli. */
+function api_try(string $path, array $params = [], $ttl = null, $default = [])
 {
     try {
-        return $fn();
-    } catch (Throwable $e) {
+        return api_get($path, $params, $ttl);
+    } catch (Exception $e) {
         $GLOBALS['ccl_api_errors'][] = $e->getMessage();
         return $default;
     }
@@ -139,10 +141,11 @@ function ccl_scope(): array
     $seasonId = (int) $cfg['season_id'];
     $seasonName = '';
 
-    $seasons = api_try(fn() => api_get('/api/meta/seasons', [
+    $meta = api_try('/api/meta/seasons', [
         'cityId' => $cfg['city_id'],
         'leagueId' => $cfg['league_id'],
-    ], 600)['seasons'] ?? [], []);
+    ], 600);
+    $seasons = isset($meta['seasons']) && is_array($meta['seasons']) ? $meta['seasons'] : [];
 
     if ($seasonId <= 0 && $seasons) {
         $seasonId = (int) $seasons[0]['id'];
@@ -165,33 +168,35 @@ function ccl_scope(): array
 function ccl_matches(): array
 {
     $s = ccl_scope();
-    $rows = api_try(fn() => api_get('/maclar', [
+    $rows = api_try('/maclar', [
         'league_id' => $s['leagueId'],
         'season_id' => $s['seasonId'],
-    ]), []);
+    ], null, []);
     $rows = is_array($rows) ? array_values(array_filter($rows, static function ($m) use ($s) {
         return is_array($m) && (int) ($m['season_id'] ?? 0) === $s['seasonId'];
     })) : [];
-    usort($rows, static fn($a, $b) => strcmp(match_sort_key($a), match_sort_key($b)) ?: ($a['id'] <=> $b['id']));
+    usort($rows, static function ($a, $b) {
+        return strcmp(match_sort_key($a), match_sort_key($b)) ?: ($a['id'] <=> $b['id']);
+    });
     return $rows;
 }
 
 function ccl_standings(?int $groupId = null): array
 {
     $s = ccl_scope();
-    $data = api_try(fn() => api_get('/api/standings', [
+    $data = api_try('/api/standings', [
         'cityId' => $s['cityId'],
         'leagueId' => $s['leagueId'],
         'seasonId' => $s['seasonId'],
         'groupId' => $groupId,
-    ]), []);
+    ], null, []);
     return is_array($data['standings'] ?? null) ? $data['standings'] : [];
 }
 
 function ccl_groups(): array
 {
     $s = ccl_scope();
-    $data = api_try(fn() => api_get('/api/season-groups/season/' . $s['seasonId'], [], 300), []);
+    $data = api_try('/api/season-groups/season/' . $s['seasonId'], [], 300, []);
     $groups = is_array($data['groups'] ?? null) ? $data['groups'] : [];
     return [
         'settings' => $data['settings'] ?? [],
@@ -207,7 +212,7 @@ function ccl_groups(): array
 function ccl_player_stats(array $opts = []): array
 {
     $s = ccl_scope();
-    $data = api_try(fn() => api_get('/api/players/statistics', [
+    $data = api_try('/api/players/statistics', [
         'cityId' => $s['cityId'],
         'leagueId' => $s['leagueId'],
         'seasonId' => $s['seasonId'],
@@ -217,7 +222,7 @@ function ccl_player_stats(array $opts = []): array
         'teamId' => $opts['teamId'] ?? null,
         'search' => $opts['search'] ?? null,
         'position' => $opts['position'] ?? null,
-    ]), []);
+    ], null, []);
     return [
         'players' => is_array($data['players'] ?? null) ? $data['players'] : [],
         'count'   => (int) ($data['pagination']['count'] ?? 0),
@@ -226,7 +231,7 @@ function ccl_player_stats(array $opts = []): array
 
 function ccl_match(int $id): ?array
 {
-    $m = api_try(fn() => api_get('/maclar/' . $id), null);
+    $m = api_try('/maclar/' . $id, [], null, null);
     if (!is_array($m) || !isset($m['id'])) {
         return null;
     }
@@ -236,7 +241,7 @@ function ccl_match(int $id): ?array
 
 function ccl_match_events(int $id): array
 {
-    $rows = api_try(fn() => api_get('/api/maclar/' . $id . '/olaylar', [], 30), []);
+    $rows = api_try('/api/maclar/' . $id . '/olaylar', [], 30, []);
     if (isset($rows['events']) && is_array($rows['events'])) {
         $rows = $rows['events'];
     }
@@ -245,7 +250,7 @@ function ccl_match_events(int $id): array
 
 function ccl_match_lineup(int $id): array
 {
-    $data = api_try(fn() => api_get('/maclar/' . $id . '/kadro'), []);
+    $data = api_try('/maclar/' . $id . '/kadro', [], null, []);
     return [
         'home' => is_array($data['home'] ?? null) ? $data['home'] : [],
         'away' => is_array($data['away'] ?? null) ? $data['away'] : [],
@@ -254,13 +259,13 @@ function ccl_match_lineup(int $id): array
 
 function ccl_team(int $id): ?array
 {
-    $t = api_try(fn() => api_get('/takimlar/' . $id, [], 300), null);
+    $t = api_try('/takimlar/' . $id, [], 300, null);
     return is_array($t) && isset($t['id']) ? $t : null;
 }
 
 function ccl_player(int $id): ?array
 {
-    $p = api_try(fn() => api_get('/oyuncular/' . $id, [], 300), null);
+    $p = api_try('/oyuncular/' . $id, [], 300, null);
     if (is_array($p) && isset($p[0]) && is_array($p[0])) {
         $p = $p[0];
     }
@@ -269,7 +274,7 @@ function ccl_player(int $id): ?array
 
 function ccl_player_events(int $id): array
 {
-    $data = api_try(fn() => api_get('/mac-olaylari', ['oyuncu_id' => $id]), []);
+    $data = api_try('/mac-olaylari', ['oyuncu_id' => $id], null, []);
     $rows = $data['macOlaylari'] ?? $data;
     return is_array($rows) ? $rows : [];
 }
@@ -318,6 +323,12 @@ function match_sort_key(array $m): string
 function match_is_live(array $m): bool
 {
     return ($m['mac_durumu'] ?? '') === 'canli';
+}
+
+/** Henüz oynanmamış ve canlı olmayan maç mı? */
+function match_is_upcoming(array $m): bool
+{
+    return !match_is_played($m) && !match_is_live($m);
 }
 
 /** Sonucu girilmiş (oynanmış) maç mı? */

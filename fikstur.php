@@ -3,7 +3,7 @@ require __DIR__ . '/inc/bootstrap.php';
 
 $matches = ccl_matches();
 $teams = ccl_team_map();
-uasort($teams, static fn($a, $b) => tr_compare($a['name'], $b['name']));
+uasort($teams, 'compare_team_names');
 
 $tab = qs('tab', 'tumu');
 if (!in_array($tab, ['tumu', 'fikstur', 'sonuclar'], true)) {
