@@ -28,9 +28,14 @@ foreach (['home', 'away'] as $side) {
         }
     }
 }
-$pname = static fn($pid) => $pid ? ($names[(int) $pid] ?? 'Oyuncu') : '';
+$pname = static function ($pid) use ($names) {
+    return $pid ? ($names[(int) $pid] ?? 'Oyuncu') : '';
+};
 
-usort($events, static fn($a, $b) => [(int) ($a['devre'] ?? 1), (int) ($a['dakika'] ?? 0), (int) $a['id']] <=> [(int) ($b['devre'] ?? 1), (int) ($b['dakika'] ?? 0), (int) $b['id']]);
+usort($events, static function ($a, $b) {
+    return [(int) ($a['devre'] ?? 1), (int) ($a['dakika'] ?? 0), (int) $a['id']]
+        <=> [(int) ($b['devre'] ?? 1), (int) ($b['dakika'] ?? 0), (int) $b['id']];
+});
 
 // Gol atanlar (skor özeti) ve maç istatistikleri
 $scorers = ['home' => [], 'away' => []];
@@ -63,7 +68,12 @@ foreach ($events as $ev) {
         $keyEvents[] = ['ev' => $ev, 'info' => $info, 'side' => $side];
     }
 }
-$hasStats = array_sum(array_map(static fn($s) => $s['home'] + $s['away'], $stats)) > 0;
+$hasStats = false;
+foreach ($stats as $s) {
+    if ($s['home'] + $s['away'] > 0) {
+        $hasStats = true;
+    }
+}
 
 $video = (string) ($match['match_video'] ?? '');
 $video = preg_match('#^https?://#i', $video) ? $video : '';
@@ -166,8 +176,15 @@ echo render_api_notice();
   <div class="grid-2">
     <?php foreach (['home' => [$homeId, $home], 'away' => [$awayId, $away]] as $side => [$tid, $tname]):
       $players = $lineup[$side];
-      $starters = array_filter($players, static fn($p) => ($p['role'] ?? 'starter') === 'starter');
-      $subs = array_filter($players, static fn($p) => ($p['role'] ?? 'starter') !== 'starter'); ?>
+      $starters = [];
+      $subs = [];
+      foreach ($players as $p) {
+          if (($p['role'] ?? 'starter') === 'starter') {
+              $starters[] = $p;
+          } else {
+              $subs[] = $p;
+          }
+      } ?>
       <div class="card lineup">
         <div class="lineup-head"><?= team_badge(team_logo($tid), $tname, 'sm') ?><h3><?= e($tname) ?></h3></div>
         <?php foreach (['İlk 11' => $starters, 'Yedekler' => $subs] as $title => $group): if (!$group) continue; ?>

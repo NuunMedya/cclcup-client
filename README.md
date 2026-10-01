@@ -53,13 +53,18 @@ yapıldığı için elitlig-server'da CORS ayarı değiştirmeye gerek yoktur.
 
 ## Kurulum
 
-1. PHP 7.4+ (8.x önerilir) ve `curl` eklentisi (yoksa `file_get_contents` kullanılır).
+1. PHP 7.1+ (8.x önerilir) ve `curl` eklentisi (yoksa `file_get_contents` kullanılır).
+   `mbstring` yoksa yedek fonksiyonlar devreye girer.
 2. Dosyaları `cclcup.com`'un kök dizinine yükleyin.
 3. `cache/` klasörünün web sunucusu tarafından yazılabilir olduğundan emin olun
    (`chmod 775 cache`). Yazılamazsa site çalışır ama her istekte API'ye gider.
 4. Apache kullanılıyorsa `.htaccess` dosyaları `inc/` ve `cache/` klasörlerini
    dışarıya kapatır. Nginx'te aynı kuralı elle ekleyin:
    `location ~ ^/(inc|cache)/ { deny all; }`
+
+Site açılmıyorsa (500 hatası) `/kontrol.php` sayfasını açın: PHP sürümünü,
+eklentileri, `cache/` iznini, elitlig-server bağlantısını kontrol eder ve ana
+sayfanın verdiği hatayı gösterir.
 
 Yerelde denemek için:
 

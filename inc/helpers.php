@@ -8,7 +8,9 @@ function e($value): string
 
 function url(string $page, array $params = []): string
 {
-    $params = array_filter($params, static fn($v) => $v !== null && $v !== '');
+    $params = array_filter($params, static function ($v) {
+        return $v !== null && $v !== '';
+    });
     return $page . ($params ? '?' . http_build_query($params) : '');
 }
 
@@ -151,10 +153,10 @@ function position_short(?string $pos): string
 {
     $p = mb_strtolower(trim((string) $pos), 'UTF-8');
     if ($p === '') return '';
-    if (str_contains($p, 'kaleci')) return 'KL';
-    if (str_contains($p, 'defans')) return 'DF';
-    if (str_contains($p, 'orta')) return 'OS';
-    if (str_contains($p, 'forvet') || str_contains($p, 'hücum')) return 'FV';
+    if (strpos($p, 'kaleci') !== false) return 'KL';
+    if (strpos($p, 'defans') !== false) return 'DF';
+    if (strpos($p, 'orta') !== false) return 'OS';
+    if (strpos($p, 'forvet') !== false || strpos($p, 'hücum') !== false) return 'FV';
     return mb_strtoupper(mb_substr($p, 0, 2, 'UTF-8'), 'UTF-8');
 }
 
@@ -172,6 +174,12 @@ function tr_compare(string $a, string $b): int
         $collator = class_exists('Collator') ? new Collator('tr_TR') : false;
     }
     return $collator ? (int) $collator->compare($a, $b) : strcmp(mb_strtolower($a, 'UTF-8'), mb_strtolower($b, 'UTF-8'));
+}
+
+/** Takım listelerini ada göre sıralamak için (uasort/usort). */
+function compare_team_names(array $a, array $b): int
+{
+    return tr_compare((string) $a['name'], (string) $b['name']);
 }
 
 /** Güvenli query string okuma (dizi gönderilirse yok sayılır). */

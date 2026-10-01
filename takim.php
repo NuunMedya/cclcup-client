@@ -20,9 +20,13 @@ foreach ($standings as $i => $r) {
     }
 }
 
-$matches = array_values(array_filter(ccl_matches(), static fn($m) => (int) $m['home_team_id'] === $id || (int) $m['away_team_id'] === $id));
+$matches = array_values(array_filter(ccl_matches(), static function ($m) use ($id) {
+    return (int) $m['home_team_id'] === $id || (int) $m['away_team_id'] === $id;
+}));
 $played = array_values(array_filter($matches, 'match_is_played'));
-$upcoming = array_values(array_filter($matches, static fn($m) => !match_is_played($m)));
+$upcoming = array_values(array_filter($matches, static function ($m) {
+    return !match_is_played($m);
+}));
 
 $squad = ccl_player_stats(['teamId' => $id, 'limit' => 100, 'sort' => 'mostMatches'])['players'];
 usort($squad, static function ($a, $b) {
@@ -32,7 +36,9 @@ usort($squad, static function ($a, $b) {
     return $pa <=> $pb ?: ($b['matchesPlayed'] <=> $a['matchesPlayed']) ?: tr_compare($a['playerName'], $b['playerName']);
 });
 $topScorers = $squad;
-usort($topScorers, static fn($a, $b) => $b['totalGoals'] <=> $a['totalGoals']);
+usort($topScorers, static function ($a, $b) {
+    return $b['totalGoals'] <=> $a['totalGoals'];
+});
 
 $page = ['title' => $name, 'nav' => 'teams', 'description' => $name . ' — CCL CUP maçları, kadrosu ve istatistikleri.'];
 require __DIR__ . '/inc/header.php';

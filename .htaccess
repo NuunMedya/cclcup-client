@@ -1,6 +1,6 @@
 # CCL CUP — Apache ayarları
-Options -Indexes
-DirectoryIndex index.php
+# Not: "Options" / "DirectoryIndex" satırları bilerek yok; birçok paylaşımlı
+# hostingde .htaccess içinde izin verilmediği için 500 hatasına yol açıyorlar.
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
