@@ -71,11 +71,28 @@ function initials(string $name): string
     return mb_strtoupper($out ?: '?', 'UTF-8');
 }
 
+/**
+ * Medya sunucusundaki görselleri kendi alan adımızdan (img.php) sunar;
+ * diğer adresler olduğu gibi döner.
+ */
+function media_url(?string $url, int $width = 0): string
+{
+    $url = trim((string) $url);
+    if ($url === '') {
+        return '';
+    }
+    $base = (string) ccl_config('media_base') . '/';
+    if ($base !== '/' && strpos($url, $base) === 0) {
+        return 'img.php?p=' . str_replace('%2F', '/', rawurlencode(rawurldecode(substr($url, strlen($base))))) . ($width ? '&w=' . $width : '');
+    }
+    return $url;
+}
+
 /** Takım logosu ya da baş harflerden oluşan rozet. */
 function team_badge(?string $logo, string $name, string $size = 'md'): string
 {
     if ($logo) {
-        return '<span class="badge badge-' . e($size) . '"><img src="' . e($logo) . '" alt="' . e($name) . ' logosu" loading="lazy"></span>';
+        return '<span class="badge badge-' . e($size) . '"><img src="' . e(media_url($logo, in_array($size, ['xs', 'sm', 'md'], true) ? 160 : 320)) . '" alt="' . e($name) . ' logosu" loading="lazy"></span>';
     }
     return '<span class="badge badge-' . e($size) . ' badge-initials" aria-hidden="true">' . e(initials($name)) . '</span>';
 }
@@ -83,7 +100,7 @@ function team_badge(?string $logo, string $name, string $size = 'md'): string
 function player_avatar(?string $img, string $name, string $size = 'md'): string
 {
     if ($img) {
-        return '<span class="avatar avatar-' . e($size) . '"><img src="' . e($img) . '" alt="' . e($name) . '" loading="lazy"></span>';
+        return '<span class="avatar avatar-' . e($size) . '"><img src="' . e(media_url($img, in_array($size, ['xs', 'sm', 'md', 'pitch'], true) ? 160 : 640)) . '" alt="' . e($name) . '" loading="lazy"></span>';
     }
     return '<span class="avatar avatar-' . e($size) . ' avatar-initials" aria-hidden="true">' . e(initials($name)) . '</span>';
 }

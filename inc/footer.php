@@ -7,8 +7,7 @@ $contact = $cfg['contact'];
   <div class="container footer-grid">
     <div>
       <a class="brand brand-footer" href="index.php">
-        <img src="assets/img/logo.svg" alt="" width="40" height="40">
-        <span class="brand-text"><strong>CCL <em>CUP</em></strong><small>Kurumlar Arası Futbol Turnuvası</small></span>
+        <img class="brand-logo" src="assets/img/logo-white.png" alt="Natura Dünyası CCL CUP" width="270" height="56" loading="lazy">
       </a>
       <p class="muted">Maç sonuçları, puan durumu ve oyuncu istatistikleri maç günü anlık olarak güncellenir.</p>
     </div>
@@ -35,9 +34,9 @@ $contact = $cfg['contact'];
   </div>
   <div class="container footer-bottom">
     <span>© <?= date('Y') ?> <?= e($cfg['site_name']) ?></span>
-    <span>Veri altyapısı: <a href="<?= e($cfg['elitlig_url']) ?>" target="_blank" rel="noopener">ElitLig</a></span>
+    <span>Natura Dünyası CCL CUP · Kurumlar Arası Futbol Turnuvası</span>
   </div>
 </footer>
-<script src="assets/js/main.js?v=2" defer></script>
+<script src="assets/js/main.js?v=3" defer></script>
 </body>
 </html>

@@ -43,9 +43,9 @@ if (version_compare(PHP_VERSION, '7.1.0', '>=') && is_file(__DIR__ . '/config.ph
         $apiDetail = $body === false ? 'bağlantı kurulamadı' : 'ok';
     }
     $apiOk = $body !== false && strpos((string) $body, 'seasons') !== false;
-    $apiDetail .= ' — ' . htmlspecialchars($cfg['api_base']);
+    
 }
-$add('elitlig-server bağlantısı', $apiOk, $apiDetail);
+$add('Veri sunucusu bağlantısı', $apiOk, $apiDetail);
 ?>
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

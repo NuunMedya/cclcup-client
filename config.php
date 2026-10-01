@@ -26,6 +26,10 @@ return [
     // 0 verilirse ligin en güncel (arşivlenmemiş) sezonu otomatik seçilir.
     'season_id'  => (int) $env('CCL_SEASON_ID', 193),
 
+    // Logo ve fotoğrafların bulunduğu medya sunucusu. Bu adresteki görseller
+    // ziyaretçiye img.php üzerinden kendi alan adımızla sunulur.
+    'media_base' => rtrim($env('CCL_MEDIA_BASE', 'https://elitlig-space.fra1.digitaloceanspaces.com'), '/'),
+
     // API yanıtlarının dosya önbelleğinde tutulma süresi (saniye)
     'cache_ttl'  => (int) $env('CCL_CACHE_TTL', 60),
     'cache_dir'  => __DIR__ . '/cache',
@@ -33,9 +37,8 @@ return [
 
     // Site bilgileri
     'site_name'  => 'CCL CUP',
-    'site_title' => 'CCL CUP — Kurumlar Arası Futbol Turnuvası',
+    'site_title' => 'Natura Dünyası CCL CUP — Kurumlar Arası Futbol Turnuvası',
     'site_url'   => rtrim($env('CCL_SITE_URL', 'https://cclcup.com'), '/'),
-    'elitlig_url'=> 'https://elitlig.com',
 
     // İletişim / sosyal medya (boş bırakılanlar gösterilmez)
     'contact' => [

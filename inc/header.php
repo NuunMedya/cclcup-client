@@ -25,24 +25,27 @@ $active = $page['nav'] ?? '';
   <meta property="og:title" content="<?= e($pageTitle) ?>">
   <meta property="og:description" content="<?= e($description) ?>">
   <meta property="og:type" content="website">
-  <?php if (!empty($page['image'])): ?><meta property="og:image" content="<?= e($page['image']) ?>"><meta name="twitter:card" content="summary_large_image"><?php endif; ?>
+  <?php
+    $ogImage = media_url($page['image'] ?? '') ?: 'assets/img/logo-color.png';
+    if (!preg_match('#^https?://#i', $ogImage)) $ogImage = $cfg['site_url'] . '/' . ltrim($ogImage, '/');
+  ?>
+  <meta property="og:image" content="<?= e($ogImage) ?>">
+  <?php if (!empty($page['image'])): ?><meta name="twitter:card" content="summary_large_image"><?php endif; ?>
   <meta property="og:site_name" content="<?= e($cfg['site_name']) ?>">
-  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=2">
+  <link rel="stylesheet" href="assets/css/style.css?v=3">
 </head>
 <body>
 <a class="skip-link" href="#main">İçeriğe geç</a>
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="index.php" aria-label="<?= e($cfg['site_name']) ?> ana sayfa">
-      <img src="assets/img/logo.svg" alt="" width="44" height="44">
-      <span class="brand-text">
-        <strong>CCL <em>CUP</em></strong>
-        <small><?= e($scope['seasonName'] ?: 'Kurumlar Arası Futbol Turnuvası') ?></small>
-      </span>
+      <img class="brand-logo" src="assets/img/logo-white.png" alt="Natura Dünyası CCL CUP" width="232" height="48">
+      <?php if ($scope['seasonName']): ?><span class="brand-season"><?= e($scope['seasonName']) ?></span><?php endif; ?>
     </a>
     <button class="nav-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="Menüyü aç">
       <span></span><span></span><span></span>

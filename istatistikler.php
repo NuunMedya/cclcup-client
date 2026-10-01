@@ -2,7 +2,6 @@
 require __DIR__ . '/inc/bootstrap.php';
 
 $sorts = [
-    'mostValuable' => ['En değerli', 'totalPoints', 'Puan'],
     'topScorers'   => ['Gol', 'totalGoals', 'Gol'],
     'mostAssists'  => ['Asist', 'assists', 'Asist'],
     'mostMatches'  => ['Maç', 'matchesPlayed', 'Maç'],
