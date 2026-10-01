@@ -20,7 +20,7 @@ if ($newsId !== '' && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $newsId)) {
       <span class="eyebrow"><?= e($item['category_label'] ?? 'Haber') ?></span>
       <h1 class="headline"><?= e($item['title']) ?></h1>
       <?php if (!empty($item['summary'])): ?><p class="lead-text"><?= e($item['summary']) ?></p><?php endif; ?>
-      <?php if (!empty($item['cover_image_url'])): ?><img class="article-cover" src="<?= e($item['cover_image_url']) ?>" alt=""><?php endif; ?>
+      <?php if (!empty($item['cover_image_url'])): ?><img class="article-cover" src="<?= e(media_url($item['cover_image_url'])) ?>" alt=""><?php endif; ?>
       <div class="prose"><?= $content ?></div>
       <?= share_links($item['title']) ?>
     </article>
@@ -55,7 +55,7 @@ echo render_api_notice();
   <div class="story-grid section-gap">
     <?php foreach ($news as $n): ?>
       <a class="story story-card" href="<?= e(url('haberler.php', ['haber' => $n['id']])) ?>">
-        <?php if (!empty($n['cover_image_url'])): ?><div class="cover cover-md cover-photo"><img src="<?= e($n['cover_image_url']) ?>" alt="" loading="lazy"></div><?php endif; ?>
+        <?php if (!empty($n['cover_image_url'])): ?><div class="cover cover-md cover-photo"><img src="<?= e(media_url($n['cover_image_url'])) ?>" alt="" loading="lazy"></div><?php endif; ?>
         <span class="story-body"><span class="story-kicker"><?= e($n['category_label'] ?? 'Haber') ?></span><span class="story-title"><?= e($n['title']) ?></span><span class="story-summary"><?= e($n['summary'] ?? '') ?></span></span>
       </a>
     <?php endforeach; ?>

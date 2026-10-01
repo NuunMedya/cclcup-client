@@ -69,7 +69,6 @@ $leaders = [
 
 $p = max(1, $all['p']);
 $winPct = ratio($all['w'], $all['p']);
-$followers = ccl_team_followers($id);
 
 $kindParts = [];
 $kindClasses = ['right' => 's1', 'left' => 's2', 'header' => 's3', 'penalty' => 's4', 'freekick' => 's5', 'long' => 's6', 'own' => 's7', 'other' => 's8'];
@@ -87,8 +86,8 @@ echo render_api_notice();
 ?>
 <header class="th<?= $coverMatch ? ' has-photo' : '' ?>">
   <div class="th-bg" aria-hidden="true">
-    <?php if ($coverMatch): ?><img src="<?= e(match_cover($coverMatch)) ?>" alt=""><?php endif; ?>
-    <?php if ($logo): ?><img class="th-watermark" src="<?= e($logo) ?>" alt=""><?php endif; ?>
+    <?php if ($coverMatch): ?><img src="<?= e(media_url(match_cover($coverMatch), 1920)) ?>" alt=""><?php endif; ?>
+    <?php if ($logo): ?><img class="th-watermark" src="<?= e(media_url($logo, 640)) ?>" alt=""><?php endif; ?>
   </div>
   <div class="container th-inner">
     <?= team_badge($logo, $name, 'xxl') ?>
@@ -101,9 +100,17 @@ echo render_api_notice();
         <?php if ($row): ?><span class="chip-lg"><b><?= e((string) ($row['display_points'] ?? $row['total_points'] ?? 0)) ?></b> puan</span><?php endif; ?>
         <?php if ($streak['count']): ?><span class="chip-lg chip-<?= e($streak['type']) ?>"><?= e($streak['label']) ?></span><?php endif; ?>
         <?php if (!empty($team['founded_at'])): ?><span class="chip-lg">Kuruluş <b><?= e(substr((string) $team['founded_at'], 0, 4)) ?></b></span><?php endif; ?>
-        <?php if ($followers): ?><span class="chip-lg"><b><?= $followers ?></b> takipçi</span><?php endif; ?>
       </div>
-      <?php if ($results): ?><div class="form-row"><span class="muted">Son maçlar</span> <?= form_badges(implode('', array_map(static function ($r) { return ['w' => 'W', 'd' => 'D', 'l' => 'L'][$r['res']]; }, array_slice($results, -5)))) ?></div><?php endif; ?>
+      <?php if ($results): ?>
+      <div class="form-strip" aria-label="Son maçlar">
+        <?php foreach (array_slice($results, -6) as $r): $om = $r['match']; $opp = ccl_team_map()[$r['opp']] ?? ['name' => '', 'logo' => null]; ?>
+          <a class="fs fs-<?= e($r['res']) ?>" href="<?= e(match_url((int) $om['id'])) ?>" title="<?= e($opp['name'] . ' · ' . fmt_date($om)) ?>">
+            <?= team_badge($opp['logo'], $opp['name'], 'sm') ?>
+            <b><?= $r['gf'] ?>-<?= $r['ga'] ?></b>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </header>
@@ -124,6 +131,14 @@ echo render_api_notice();
     <?= stat_tile('Gol yemediği maç', $t['cs'], $all['p'] ? pct(ratio($t['cs'], $all['p'])) . ' oranında' : '') ?>
     <?= stat_tile('İlk golü attığı', $t['first_goal'], $t['first_goal'] ? $t['first_goal_wins'] . ' tanesini kazandı' : '') ?>
   </div>
+
+  <?php if ($all['p']): ?>
+  <div class="wdl wdl-lg section-gap" title="Galibiyet / beraberlik / mağlubiyet">
+    <span class="wdl-w" style="flex: <?= $all['w'] ?>"><?= $all['w'] ? $all['w'] . ' galibiyet' : '' ?></span>
+    <span class="wdl-d" style="flex: <?= $all['d'] ?>"><?= $all['d'] ? $all['d'] . ' beraberlik' : '' ?></span>
+    <span class="wdl-l" style="flex: <?= $all['l'] ?>"><?= $all['l'] ? $all['l'] . ' mağlubiyet' : '' ?></span>
+  </div>
+  <?php endif; ?>
 
   <div class="grid-main-side section-gap">
     <div class="card">
@@ -174,15 +189,15 @@ echo render_api_notice();
       <?php if (!$results): ?>
         <div class="empty-state"><p>Henüz oynanmış maç yok.</p></div>
       <?php else: ?>
-        <div class="result-list">
-          <?php foreach (array_reverse($results) as $r): $m = $r['match']; $opp = ccl_team_map()[$r['opp']] ?? ['name' => '', 'logo' => null]; ?>
-            <a class="result result-<?= e($r['res']) ?>" href="<?= e(match_url((int) $m['id'])) ?>">
-              <span class="form form-<?= ['w' => 'win', 'd' => 'draw', 'l' => 'loss'][$r['res']] ?>"><?= ['w' => 'G', 'd' => 'B', 'l' => 'M'][$r['res']] ?></span>
-              <span class="result-date"><?= e(fmt_date_short($m)['day'] . ' ' . fmt_date_short($m)['month']) ?></span>
-              <span class="result-venue"><?= $r['venue'] === 'home' ? 'İç saha' : 'Deplasman' ?></span>
-              <?= team_badge($opp['logo'], $opp['name'], 'xs') ?>
-              <span class="result-opp"><?= e($opp['name']) ?></span>
-              <b class="result-score"><?= $r['gf'] ?> - <?= $r['ga'] ?></b>
+        <div class="rcards">
+          <?php foreach (array_reverse($results) as $r): $m = $r['match']; ?>
+            <a class="rcard rcard-<?= e($r['res']) ?>" href="<?= e(match_url((int) $m['id'])) ?>">
+              <span class="rcard-top"><span class="form form-<?= ['w' => 'win', 'd' => 'draw', 'l' => 'loss'][$r['res']] ?>"><?= ['w' => 'G', 'd' => 'B', 'l' => 'M'][$r['res']] ?></span><?= e(fmt_date($m)) ?></span>
+              <span class="rcard-body">
+                <span class="rcard-team"><?= team_badge(team_logo((int) $m['home_team_id']), $m['first_team_name'], 'md') ?><small><?= e($m['first_team_name']) ?></small></span>
+                <b class="rcard-score"><?= (int) $m['first_team_score'] ?><i>-</i><?= (int) $m['second_team_score'] ?></b>
+                <span class="rcard-team"><?= team_badge(team_logo((int) $m['away_team_id']), $m['second_team_name'], 'md') ?><small><?= e($m['second_team_name']) ?></small></span>
+              </span>
             </a>
           <?php endforeach; ?>
         </div>
@@ -244,6 +259,24 @@ echo render_api_notice();
       <?php endif; ?>
     </div>
   </div>
+  <?php
+    $scorers = array_values(array_filter($squad, static function ($p) { return (int) $p['totalGoals'] > 0; }));
+    usort($scorers, static function ($a, $b) { return $b['totalGoals'] <=> $a['totalGoals']; });
+    if ($scorers): $maxG = max(1, (int) $scorers[0]['totalGoals']); ?>
+  <div class="card section-gap">
+    <div class="section-head"><h3>Takımın Golcüleri</h3><span class="muted small"><?= $all['gf'] ?> golün dağılımı</span></div>
+    <div class="hbars">
+      <?php foreach (array_slice($scorers, 0, 8) as $sc): ?>
+        <a class="hbar" href="<?= e(player_url((int) $sc['playerId'])) ?>">
+          <?= player_avatar($sc['playerImage'] ?? null, $sc['playerName'], 'sm') ?>
+          <span class="hbar-name"><?= e($sc['playerName']) ?></span>
+          <span class="hbar-track"><i style="width: <?= round((int) $sc['totalGoals'] / $maxG * 100, 1) ?>%"></i></span>
+          <b><?= (int) $sc['totalGoals'] ?></b>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
   <div class="tiles tiles-6 section-gap">
     <?= stat_tile('Pozisyon üretme', $t['chances'], 'Maç başı ' . num(ratio($t['chances'], $all['p']), 1)) ?>
     <?= stat_tile('Kurtarış', $t['saves'], 'Maç başı ' . num(ratio($t['saves'], $all['p']), 1)) ?>
@@ -260,22 +293,31 @@ echo render_api_notice();
     <?php if (!$squad): ?>
       <div class="empty-state small"><p>Kadro bilgisi henüz girilmedi.</p></div>
     <?php else: ?>
-    <div class="squad-grid">
-      <?php foreach ($squad as $pl): $short = position_short($pl['position'] ?? ''); ?>
-        <a class="squad-card" href="<?= e(player_url((int) $pl['playerId'])) ?>">
-          <?= player_avatar($pl['playerImage'] ?? null, $pl['playerName'], 'lg') ?>
-          <span class="pos-tag pos-<?= e(strtolower($short) ?: 'na') ?>"><?= e($short ?: '–') ?></span>
-          <strong><?= e($pl['playerName']) ?></strong>
-          <span class="squad-stats"><span><b><?= (int) $pl['matchesPlayed'] ?></b> maç</span><span><b><?= (int) $pl['totalGoals'] ?></b> gol</span><span><b><?= (int) $pl['assists'] ?></b> asist</span></span>
-        </a>
-      <?php endforeach; ?>
-    </div>
+    <?php
+      $groups = ['KL' => 'Kaleciler', 'DF' => 'Defans', 'OS' => 'Orta Saha', 'FV' => 'Forvet', '' => 'Diğer'];
+      $byPos = [];
+      foreach ($squad as $pl) {
+          $k = position_short($pl['position'] ?? '');
+          $byPos[isset($groups[$k]) ? $k : ''][] = $pl;
+      }
+      foreach ($groups as $k => $label): if (empty($byPos[$k])) continue; ?>
+      <h4 class="squad-title"><span class="pos-tag pos-<?= e(strtolower($k) ?: 'na') ?>"><?= e($k ?: '–') ?></span> <?= e($label) ?> <small><?= count($byPos[$k]) ?></small></h4>
+      <div class="squad-grid">
+        <?php foreach ($byPos[$k] as $pl): ?>
+          <a class="squad-card" href="<?= e(player_url((int) $pl['playerId'])) ?>">
+            <span class="squad-photo"><?= player_avatar($pl['playerImage'] ?? null, $pl['playerName'], 'squad') ?></span>
+            <strong><?= e($pl['playerName']) ?></strong>
+            <span class="squad-stats"><span><b><?= (int) $pl['matchesPlayed'] ?></b> maç</span><span><b><?= (int) $pl['totalGoals'] ?></b> gol</span><?php if ((int) $pl['saves']): ?><span><b><?= (int) $pl['saves'] ?></b> kurt.</span><?php else: ?><span><b><?= (int) $pl['assists'] ?></b> asist</span><?php endif; ?></span>
+          </a>
+        <?php endforeach; ?>
+      </div>
+    <?php endforeach; ?>
 
     <details class="details-table">
       <summary>Ayrıntılı kadro istatistikleri</summary>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th class="left">Oyuncu</th><th>Mevki</th><th title="Maç">M</th><th title="İlk 11">İ11</th><th title="Gol">G</th><th title="Asist">A</th><th title="Pozisyon">Poz</th><th title="Kurtarış">Kur</th><th title="Blok">Blk</th><th title="Sarı kart">SK</th><th title="Kırmızı kart">KK</th><th title="Toplam puan">Puan</th></tr></thead>
+          <thead><tr><th class="left">Oyuncu</th><th>Mevki</th><th title="Maç">M</th><th title="İlk 11">İ11</th><th title="Gol">G</th><th title="Asist">A</th><th title="Pozisyon">Poz</th><th title="Kurtarış">Kur</th><th title="Blok">Blk</th><th title="Sarı kart">SK</th><th title="Kırmızı kart">KK</th></tr></thead>
           <tbody>
           <?php foreach ($squad as $pl): ?>
             <tr>
@@ -284,7 +326,7 @@ echo render_api_notice();
               <td><?= (int) $pl['matchesPlayed'] ?></td><td><?= (int) $pl['started'] ?></td>
               <td><strong><?= (int) $pl['totalGoals'] ?></strong></td><td><?= (int) $pl['assists'] ?></td>
               <td><?= (int) $pl['chancesCreated'] ?></td><td><?= (int) $pl['saves'] ?></td><td><?= (int) $pl['criticalBlocks'] ?></td>
-              <td><?= (int) $pl['yellowCards'] ?></td><td><?= (int) $pl['redCards'] ?></td><td><?= e(num($pl['totalPoints'], fmod((float) $pl['totalPoints'], 1.0) ? 1 : 0)) ?></td>
+              <td><?= (int) $pl['yellowCards'] ?></td><td><?= (int) $pl['redCards'] ?></td>
             </tr>
           <?php endforeach; ?>
           </tbody>

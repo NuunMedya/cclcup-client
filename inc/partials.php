@@ -114,33 +114,6 @@ function render_standings_table(array $rows, bool $compact = false, int $highlig
     return (string) ob_get_clean();
 }
 
-/** Liderlik listesi (gol krallığı vb.) */
-function render_leader_list(array $players, string $field, string $unit, int $limit = 5): string
-{
-    $players = array_values(array_filter($players, static function ($p) use ($field) {
-        return (float) ($p[$field] ?? 0) > 0;
-    }));
-    if (!$players) {
-        return '<div class="empty-state small"><p>Henüz veri yok.</p></div>';
-    }
-    ob_start(); ?>
-    <ol class="leaders">
-      <?php foreach (array_slice($players, 0, $limit) as $i => $p): ?>
-        <li class="<?= $i === 0 ? 'top' : '' ?>">
-          <span class="leader-rank"><?= $i + 1 ?></span>
-          <?= player_avatar($p['playerImage'] ?? null, (string) $p['playerName'], 'sm') ?>
-          <span class="leader-info">
-            <a href="<?= e(player_url((int) $p['playerId'])) ?>"><?= e($p['playerName']) ?></a>
-            <small><?= e($p['teamName'] ?? '') ?></small>
-          </span>
-          <span class="leader-value"><strong><?= e(num($p[$field], fmod((float) $p[$field], 1.0) ? 2 : 0)) ?></strong><small><?= e($unit) ?></small></span>
-        </li>
-      <?php endforeach; ?>
-    </ol>
-    <?php
-    return (string) ob_get_clean();
-}
-
 function render_api_notice(): string
 {
     if (empty($GLOBALS['ccl_api_errors'])) {
@@ -149,9 +122,26 @@ function render_api_notice(): string
     return '<div class="container"><div class="notice">Bazı veriler şu anda yüklenemedi. Lütfen birkaç dakika sonra sayfayı yenileyin.</div></div>';
 }
 
+/** Kapak üstündeki skor şeridi (logo · takım · skor · takım · logo). */
+function cover_scorebar(array $m, bool $withScore = true): string
+{
+    $homeId = (int) $m['home_team_id'];
+    $awayId = (int) $m['away_team_id'];
+    $home = (string) $m['first_team_name'];
+    $away = (string) $m['second_team_name'];
+    $showScore = $withScore && (match_is_played($m) || match_is_live($m));
+    $center = $showScore
+        ? '<b>' . (int) $m['first_team_score'] . '</b><i>-</i><b>' . (int) $m['second_team_score'] . '</b>'
+        : '<b class="vs">' . e(fmt_time($m) ?: 'VS') . '</b>';
+    return '<span class="scorebar"><span class="sbar-team">' . team_badge(team_logo($homeId), $home, 'xs') . '<span>' . e($home) . '</span></span>'
+        . '<span class="sbar-score">' . $center . '</span>'
+        . '<span class="sbar-team sbar-away"><span>' . e($away) . '</span>' . team_badge(team_logo($awayId), $away, 'xs') . '</span></span>';
+}
+
 /**
- * Maç kapağı: panelde yüklenmiş kapak fotoğrafı varsa o, yoksa iki takımın
- * logolarıyla oluşturulan tasarım kapak.
+ * Maç kapağı: panelde yüklenmiş fotoğraf varsa kırpılmadan (bulanık zemin
+ * üzerinde) gösterilir ve logolar/skor fotoğrafın üstüne yerleşir; fotoğraf
+ * yoksa iki takımın logolarıyla tasarım kapak çizilir.
  */
 function render_cover(array $m, string $size = 'md', bool $withScore = true): string
 {
@@ -163,7 +153,10 @@ function render_cover(array $m, string $size = 'md', bool $withScore = true): st
     $showScore = $withScore && (match_is_played($m) || match_is_live($m));
 
     if ($photo) {
-        return '<div class="cover cover-' . e($size) . ' cover-photo"><img src="' . e($photo) . '" alt="' . e($home . ' - ' . $away . ' maçından kare') . '" loading="lazy"></div>';
+        return '<div class="cover cover-' . e($size) . ' cover-photo">'
+            . '<img class="cover-blur" src="' . e(media_url($photo, 320)) . '" alt="" aria-hidden="true" loading="lazy">'
+            . '<img class="cover-img" src="' . e(media_url($photo, $size === 'hero' || $size === 'lg' ? 1280 : 640)) . '" alt="' . e($home . ' - ' . $away . ' maçından kare') . '" loading="lazy">'
+            . cover_scorebar($m, $withScore) . '</div>';
     }
     $seed = ($homeId * 7 + $awayId * 13) % 4;
     ob_start(); ?>
@@ -177,7 +170,8 @@ function render_cover(array $m, string $size = 'md', bool $withScore = true): st
         <?php endif; ?>
       </span>
       <span class="cover-logo cover-logo-away"><?= team_badge(team_logo($awayId), $away, 'cover') ?></span>
-      <span class="cover-mark">CCL CUP</span>
+      <span class="cover-names"><span><?= e($home) ?></span><span><?= e($away) ?></span></span>
+      <img class="cover-mark" src="assets/img/logo-white.png" alt="" loading="lazy">
     </div>
     <?php
     return (string) ob_get_clean();
@@ -209,28 +203,6 @@ function stat_tile(string $label, $value, string $sub = '', string $class = ''):
         . ($sub !== '' ? '<span class="tile-sub">' . e($sub) . '</span>' : '') . '</div>';
 }
 
-/** İki takım karşılaştırma çubuğu. */
-function compare_bar(string $label, $home, $away, string $suffix = ''): string
-{
-    $h = (float) $home;
-    $a = (float) $away;
-    $total = $h + $a;
-    $pct = $total > 0 ? round($h / $total * 100) : 50;
-    $hw = $h > $a ? ' is-lead' : '';
-    $aw = $a > $h ? ' is-lead' : '';
-    return '<div class="cmp"><div class="cmp-labels"><b class="' . trim($hw) . '">' . e(num($home, fmod($h, 1.0) ? 1 : 0) . $suffix) . '</b><span>' . e($label) . '</span><b class="' . trim($aw) . '">' . e(num($away, fmod($a, 1.0) ? 1 : 0) . $suffix) . '</b></div>'
-        . '<div class="cmp-track"><span class="c-home" style="width:' . ($total > 0 ? $pct : 50) . '%"></span><span class="c-away" style="width:' . ($total > 0 ? 100 - $pct : 50) . '%"></span></div></div>';
-}
-
-/** Yatay tek seri çubuk (yüzdelik vb.). */
-function meter_row(string $label, float $ratio, string $valueText, string $note = ''): string
-{
-    $ratio = max(0, min(1, $ratio));
-    return '<div class="meter"><div class="meter-head"><span>' . e($label) . '</span><b>' . e($valueText) . '</b></div>'
-        . '<div class="meter-track"><span style="width:' . round($ratio * 100, 1) . '%"></span></div>'
-        . ($note !== '' ? '<small>' . e($note) . '</small>' : '') . '</div>';
-}
-
 /** Paylaşım bağlantıları. */
 function share_links(string $title): string
 {
@@ -240,4 +212,23 @@ function share_links(string $title): string
         . '<a href="https://wa.me/?text=' . $text . '" target="_blank" rel="noopener" aria-label="WhatsApp ile paylaş">WhatsApp</a>'
         . '<a href="https://twitter.com/intent/tweet?text=' . $text . '" target="_blank" rel="noopener" aria-label="X ile paylaş">X</a>'
         . '<button type="button" data-copy="' . e($url) . '">Bağlantıyı kopyala</button></div>';
+}
+
+/** Minimal istatistik satırı: değerler kenarlarda, çubuklar ortadan dışa doğru. */
+function stat_row(string $label, $home, $away, string $suffix = ''): string
+{
+    $h = (float) $home;
+    $a = (float) $away;
+    $max = max($h, $a, 1);
+    $hw = round($h / $max * 100, 1);
+    $aw = round($a / $max * 100, 1);
+    $fmt = static function ($v) use ($suffix) {
+        return e(num($v, fmod((float) $v, 1.0) ? 1 : 0) . $suffix);
+    };
+    return '<div class="st">'
+        . '<b class="st-v' . ($h > $a ? ' is-lead' : '') . '">' . $fmt($home) . '</b>'
+        . '<div class="st-mid"><span class="st-label">' . e($label) . '</span>'
+        . '<span class="st-bars"><span class="stb stb-h"><i style="width:' . $hw . '%"></i></span><span class="stb stb-a"><i style="width:' . $aw . '%"></i></span></span></div>'
+        . '<b class="st-v' . ($a > $h ? ' is-lead' : '') . '">' . $fmt($away) . '</b>'
+        . '</div>';
 }

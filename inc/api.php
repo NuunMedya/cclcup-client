@@ -1,6 +1,6 @@
 <?php
 /**
- * elitlig-server istemcisi.
+ * Veri sunucusu istemcisi.
  *
  * Her istek sunucu tarafında yapılır ve cache/ klasöründe kısa süreli
  * saklanır. API'ye ulaşılamazsa süresi geçmiş önbellek kaydı gösterilir;
@@ -167,7 +167,7 @@ function api_try(string $path, array $params = [], $ttl = null, $default = [])
     try {
         return api_get($path, $params, $ttl);
     } catch (Exception $e) {
-        // 404 "kayıt yok" demektir (ör. piyasa değeri hesaplanmamış); hata sayılmaz.
+        // 404 "kayıt yok" demektir; hata sayılmaz.
         if ((int) $e->getCode() !== 404) {
             $GLOBALS['ccl_api_errors'][] = $e->getMessage();
         }
@@ -254,8 +254,8 @@ function ccl_groups(): array
 
 /**
  * Oyuncu istatistikleri.
- * sort: mostValuable, topScorers, mostAssists, mostMatches, mostCards,
- *       goalsPerMatch, pointsPerMatch, mostSaves, marketValue
+ * sort: topScorers, mostAssists, mostMatches, mostCards,
+ *       goalsPerMatch, pointsPerMatch, mostSaves
  */
 function ccl_player_stats(array $opts = []): array
 {
@@ -264,7 +264,7 @@ function ccl_player_stats(array $opts = []): array
         'cityId' => $s['cityId'],
         'leagueId' => $s['leagueId'],
         'seasonId' => $s['seasonId'],
-        'sort' => $opts['sort'] ?? 'mostValuable',
+        'sort' => $opts['sort'] ?? 'topScorers',
         'limit' => $opts['limit'] ?? 50,
         'offset' => $opts['offset'] ?? 0,
         'teamId' => $opts['teamId'] ?? null,
@@ -369,14 +369,7 @@ function compare_events(array $a, array $b): int
 /** Bir maçtaki oyuncuların maç içi istatistikleri (gol, asist, kurtarış, puan...). */
 function ccl_match_player_stats(int $matchId): array
 {
-    return ccl_player_stats(['matchId' => $matchId, 'limit' => 100, 'sort' => 'mostValuable'])['players'];
-}
-
-/** Oyuncunun tüm ElitLig kariyeri (bütün lig ve sezonlar). */
-function ccl_player_career(int $id): array
-{
-    $data = api_try('/api/players/' . $id . '/statistics', [], 600, []);
-    return isset($data['statistics']) && is_array($data['statistics']) ? $data['statistics'] : [];
+    return ccl_player_stats(['matchId' => $matchId, 'limit' => 100, 'sort' => 'mostMatches'])['players'];
 }
 
 /* ------------------------------------------------------------------ */
@@ -389,7 +382,7 @@ function media_value($v): string
     return ($v === '' || strtolower($v) === 'none' || strtolower($v) === 'null') ? '' : $v;
 }
 
-/** Maçın kapak fotoğrafı (elitlig panelinden yüklenen match_picture). */
+/** Maçın kapak fotoğrafı (yönetim panelinden yüklenen match_picture). */
 function match_cover(array $m): string
 {
     $url = media_value($m['match_picture'] ?? '');
@@ -466,19 +459,6 @@ function ccl_player_match_log(int $id): array
     ];
 }
 
-/** Oyuncunun ElitLig'deki tüm sezonları. */
-function ccl_player_seasons(int $id): array
-{
-    $data = api_try('/oyuncular/' . $id . '/season-stats', [], 600, []);
-    return is_array($data) && isset($data[0]) ? $data : [];
-}
-
-function ccl_player_market_value(int $id): array
-{
-    $data = api_try('/api/players/' . $id . '/market-value', [], 600, []);
-    return isset($data['currentValue']) ? $data : [];
-}
-
 /** Yayınlanmış "haftanın takımı / enleri" setleri. */
 function ccl_weekly_awards(int $limit = 6): array
 {
@@ -489,7 +469,7 @@ function ccl_weekly_awards(int $limit = 6): array
     return isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
 }
 
-/** Yalnızca CCL CUP ligi için yazılmış haberler (genel ElitLig haberleri hariç). */
+/** Yalnızca CCL CUP ligi için yazılmış haberler (diğer liglerin ve genel haberler hariç). */
 function ccl_news(int $limit = 12): array
 {
     $s = ccl_scope();
@@ -500,12 +480,6 @@ function ccl_news(int $limit = 12): array
     return array_values(array_filter($items, static function ($n) use ($s) {
         return (int) ($n['league_id'] ?? 0) === $s['leagueId'];
     }));
-}
-
-function ccl_team_followers(int $id): int
-{
-    $data = api_try('/api/team-followers/' . $id . '/count', [], 600, []);
-    return (int) ($data['count'] ?? 0);
 }
 
 /** Maç galerisindeki fotoğraf adresleri (virgül/satır ayrımlı ya da JSON dizi). */

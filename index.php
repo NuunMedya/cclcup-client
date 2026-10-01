@@ -34,7 +34,15 @@ $scorers = ccl_player_stats(['sort' => 'topScorers', 'limit' => 5])['players'];
 $assists = ccl_player_stats(['sort' => 'mostAssists', 'limit' => 5])['players'];
 $keepers = ccl_player_stats(['sort' => 'mostSaves', 'limit' => 5])['players'];
 $lastDate = $model['dates'] ? end($model['dates']) : null;
-$stars = $lastDate ? matchday_stars($lastDate, 6) : [];
+$matchById = [];
+$dayIds = [];
+foreach ($played as $m) {
+    $matchById[(int) $m['id']] = $m;
+    if ($lastDate && substr((string) $m['date'], 0, 10) === $lastDate) {
+        $dayIds[] = (int) $m['id'];
+    }
+}
+$dayHighlights = $dayIds ? highlights($dayIds) : [];
 $weekly = ccl_weekly_awards(1);
 $teamCount = count(ccl_team_map());
 $index = ccl_player_index();
@@ -73,28 +81,15 @@ echo render_api_notice();
   <div class="slider" data-slider>
     <?php foreach ($slides as $i => $m): $story = match_story($m); $photo = match_cover($m); ?>
       <article class="slide<?= $i === 0 ? ' active' : '' ?><?= $photo ? ' has-photo' : '' ?>" data-slide aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
-        <div class="slide-bg" aria-hidden="true">
-          <?php if ($photo): ?>
-            <img src="<?= e($photo) ?>" alt="" <?= $i === 0 ? 'fetchpriority="high"' : 'loading="lazy"' ?>>
-          <?php else: ?>
-            <span class="slide-logo slide-logo-home"><?= team_badge(team_logo((int) $m['home_team_id']), $m['first_team_name'], 'cover') ?></span>
-            <span class="slide-logo slide-logo-away"><?= team_badge(team_logo((int) $m['away_team_id']), $m['second_team_name'], 'cover') ?></span>
-          <?php endif; ?>
-        </div>
+        <div class="slide-bg" aria-hidden="true"><?php if ($photo): ?><img src="<?= e(media_url($photo, 320)) ?>" alt="" loading="lazy"><?php endif; ?></div>
         <div class="container slide-inner">
           <a class="slide-copy" href="<?= e(match_url((int) $m['id'])) ?>" tabindex="<?= $i === 0 ? '0' : '-1' ?>">
-            <span class="slide-kicker"><?= e($story['kicker']) ?></span>
+            <span class="slide-kicker"><?= e($story['kicker']) ?> · <?= e(fmt_date($m)) ?></span>
             <h2 class="slide-title"><?= e($story['headline']) ?></h2>
-            <p class="slide-summary"><?= e(mb_substr($story['summary'], 0, 190)) ?><?= mb_strlen_safe($story['summary']) > 190 ? '…' : '' ?></p>
-            <span class="slide-score">
-              <?= team_badge(team_logo((int) $m['home_team_id']), $m['first_team_name'], 'xs') ?>
-              <span><?= e($m['first_team_name']) ?></span>
-              <b><?= (int) $m['first_team_score'] ?> - <?= (int) $m['second_team_score'] ?></b>
-              <span><?= e($m['second_team_name']) ?></span>
-              <?= team_badge(team_logo((int) $m['away_team_id']), $m['second_team_name'], 'xs') ?>
-            </span>
+            <p class="slide-summary"><?= e(mb_substr($story['summary'], 0, 200)) ?><?= mb_strlen_safe($story['summary']) > 200 ? '…' : '' ?></p>
             <span class="slide-cta">Maç detayları →</span>
           </a>
+          <a class="slide-media" href="<?= e(match_url((int) $m['id'])) ?>" tabindex="-1" aria-hidden="true"><?= render_cover($m, 'hero') ?></a>
         </div>
       </article>
     <?php endforeach; ?>
@@ -161,22 +156,18 @@ echo render_api_notice();
 </section>
 <?php endif; ?>
 
-<?php if ($stars): ?>
+<?php if ($dayHighlights): ?>
 <section class="container section">
-  <div class="section-head"><h2>Maç Gününün Yıldızları</h2><span class="muted small"><?= e(fmt_date(['date' => $lastDate])) ?> · maç istatistiklerine göre</span></div>
+  <div class="section-head"><h2>Maç Gününün Öne Çıkanları</h2><span class="muted small"><?= e(fmt_date(['date' => $lastDate])) ?></span></div>
   <div class="star-row">
-    <?php foreach ($stars as $i => $st): $pl = $index[$st['player']] ?? null; if (!$pl) continue; $c = $st['c']; $sm = $st['match']; ?>
-      <a class="star-card<?= $i === 0 ? ' star-top' : '' ?>" href="<?= e(player_url($st['player'])) ?>">
-        <span class="star-rank"><?= $i + 1 ?></span>
+    <?php foreach ($dayHighlights as $i => $h): $pl = $index[$h['player']] ?? null; if (!$pl) continue; $sm = $matchById[$h['match']] ?? null; ?>
+      <a class="star-card<?= $i === 0 ? ' star-top' : '' ?>" href="<?= e(player_url($h['player'])) ?>">
+        <span class="star-label"><?= e($h['label']) ?></span>
         <?= player_avatar($pl['playerImage'] ?? null, $pl['playerName'], 'lg') ?>
         <strong><?= e($pl['playerName']) ?></strong>
         <small><?= e($pl['teamName']) ?></small>
-        <span class="star-stats">
-          <?php foreach (['goal' => 'gol', 'assist' => 'asist', 'save' => 'kurtarış', 'chance' => 'pozisyon', 'block' => 'blok'] as $k => $lbl): if (!empty($c[$k])): ?>
-            <span><b><?= (int) $c[$k] ?></b> <?= $lbl ?></span>
-          <?php endif; endforeach; ?>
-        </span>
-        <span class="star-match"><?= e($sm['first_team_name']) ?> <?= (int) $sm['first_team_score'] ?>-<?= (int) $sm['second_team_score'] ?> <?= e($sm['second_team_name']) ?></span>
+        <span class="star-value"><b><?= (int) $h['value'] ?></b> <?= e($h['unit']) ?></span>
+        <?php if ($sm): ?><span class="star-match"><?= e($sm['first_team_name']) ?> <?= (int) $sm['first_team_score'] ?>-<?= (int) $sm['second_team_score'] ?> <?= e($sm['second_team_name']) ?></span><?php endif; ?>
       </a>
     <?php endforeach; ?>
   </div>
@@ -293,7 +284,7 @@ echo render_api_notice();
   <div class="story-grid">
     <?php foreach ($news as $n): ?>
       <a class="story story-card" href="<?= e(url('haberler.php', ['haber' => $n['id']])) ?>">
-        <?php if (!empty($n['cover_image_url'])): ?><div class="cover cover-md cover-photo"><img src="<?= e($n['cover_image_url']) ?>" alt="" loading="lazy"></div><?php endif; ?>
+        <?php if (!empty($n['cover_image_url'])): ?><div class="cover cover-md cover-photo"><img src="<?= e(media_url($n['cover_image_url'])) ?>" alt="" loading="lazy"></div><?php endif; ?>
         <span class="story-body"><span class="story-kicker"><?= e($n['category_label'] ?? 'Haber') ?></span><span class="story-title"><?= e($n['title']) ?></span><span class="story-summary"><?= e($n['summary'] ?? '') ?></span></span>
       </a>
     <?php endforeach; ?>

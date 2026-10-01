@@ -12,14 +12,14 @@ girildiği anda bu sitede de görünür (en fazla `cache_ttl` saniye gecikmeyle)
 
 | Sayfa | İçerik |
 |---|---|
-| `index.php` | Dönen **manşet** (maç haberleri, kapak fotoğrafları), skor bandı, sezon rakamları, sıradaki maç geri sayımı, maç gününün yıldızları, puan durumu, gol/asist/kurtarış liderleri, turnuva rekorları, gol dakika ve tür grafikleri, haber kartları |
+| `index.php` | Dönen **manşet** (maç haberleri, kapak fotoğrafları), skor bandı, sezon rakamları, sıradaki maç geri sayımı, maç gününün öne çıkanları, puan durumu, gol/asist/kurtarış liderleri, turnuva rekorları, gol dakika ve tür grafikleri, haber kartları |
 | `haberler.php` | Tüm maç haberleri; panelden CCL CUP ligi için yazılan haberler (`?haber=`) |
 | `fikstur.php` | Tüm maçlar gün gün; Tümü / Fikstür / Sonuçlar sekmeleri ve takım filtresi |
 | `puan-durumu.php` | Detaylı puan tablosu (sezonda grup varsa grup sekmeleri) |
 | `takimlar.php` | Takım kartları |
-| `takim.php?id=` | Takım profili: sıralama grafiği, iç saha/deplasman, rekorlar, takım liderleri, sonuçlar, dakikaya ve devreye göre goller, gol türleri, pozisyon/kurtarış/kart, kadro kartları ve ayrıntılı tablo, tarihçe/başarılar/sosyal medya |
-| `mac.php?id=` | Maç detayı: kapak, otomatik ya da panelden girilen maç haberi, golcüler, ilk yarı skoru, maçın enleri / yıldızları, zaman çizelgesi ve tüm olaylar, maç/devre bazlı takım istatistikleri, saha dizilişi, kadrolar, oyuncu performans tabloları, form karşılaştırması, video/röportaj/galeri |
-| `oyuncu.php?id=` | Oyuncu profili: lig sıralamaları, lig oyuncularıyla yüzdelik karşılaştırma, gol türleri, maç maç performans, ElitLig kariyeri, ödüller, takım arkadaşları |
+| `takim.php?id=` | Takım profili: son maçlar şeridi, G/B/M dağılımı, sıralama grafiği, iç saha/deplasman, rekorlar, takım liderleri, sonuç kartları, gol analizi, takımın golcüleri, mevkilere göre fotoğraflı kadro, tarihçe/başarılar |
+| `mac.php?id=` | Maç detayı: kapak, otomatik ya da panelden girilen maç haberi, golcüler, ilk yarı skoru, maçın enleri ve öne çıkanları, sade maç akışı, maç/devre bazlı istatistikler, profil fotoğraflı saha dizilişi, kadrolar, oyuncu performans tabloları, form karşılaştırması, video/röportaj/galeri |
+| `oyuncu.php?id=` | Oyuncu kartı, ligdeki sıraları, gol dakikaları haritası, gol türleri, maç maç performans kartları, ödüller, takım arkadaşları (yalnızca CCL CUP maçları) |
 | `istatistikler.php` | Oyuncu sıralamaları (gol, asist, maç, kart, kurtarış…), arama, takım filtresi, sayfalama |
 
 Yalnızca CCL CUP kapsamındaki maç/takım/oyuncular gösterilir; başka bir ligin
@@ -33,7 +33,8 @@ id'si verilirse sayfa 404 döner.
   ve raporu (`post_rapor` / `match_comment`) kullanılır. Girilmemişse skor, golcüler
   ve maç olaylarından otomatik haber başlığı ve özeti oluşturulur.
 - **Maçın enleri:** panelde seçilen en iyi oyuncu, kaleci, gol vb. (`post_enler`).
-  Seçilmemişse maç olaylarından hesaplanan "Maçın Yıldızları" gösterilir.
+  Ayrıca maç olaylarından doğrudan "Maçın Öne Çıkanları" (en çok gol, kurtarış,
+  pozisyon, blok) gösterilir; puanlama/formül kullanılmaz.
 - **Video, röportaj, galeri:** `match_video`, `match_interview`, `match_images`.
 
 ## Kullanılan elitlig-server uçları
@@ -50,8 +51,19 @@ yapıldığı için elitlig-server'da CORS ayarı değiştirmeye gerek yoktur.
 - `GET /takimlar/:id`, `/oyuncular/:id`, `/mac-olaylari?oyuncu_id` — takım/oyuncu detayları
 - `GET /mac-olaylari?mac_ids=` — sezonun tüm maç olayları (analizler bundan hesaplanır)
 - `GET /api/players/statistics?matchId=` — maç içi oyuncu istatistikleri
-- `GET /oyuncular/:id/match-log`, `/oyuncular/:id/season-stats`, `/api/players/:id/statistics` — oyuncu günlüğü ve kariyeri
-- `GET /api/players/:id/market-value`, `/api/weekly-awards/public`, `/api/news`, `/api/team-followers/:id/count` — varsa gösterilir
+- `GET /oyuncular/:id/match-log?cityId&leagueId&seasonId` — oyuncunun bu sezonki maç günlüğü
+- `GET /api/weekly-awards/public`, `/api/news` — yalnızca CCL CUP kapsamındakiler, varsa gösterilir
+
+Sitede yalnızca gerçek maç verileri gösterilir: piyasa değeri, puan/derecelendirme
+ve oyuncuların CCL CUP dışındaki maçları kullanılmaz.
+
+## Görseller ve logo
+
+- Site logosu: `assets/img/logo-white.png` (koyu zeminler) ve `assets/img/logo-color.png`
+  (açık zeminler), kökteki "yatay natura dünyası ccl cup logo" dosyalarından üretildi.
+- Takım logoları ve oyuncu/maç fotoğrafları `img.php` üzerinden kendi alan adımızla
+  sunulur, `cache/img` altında saklanır ve GD varsa küçültülür (ör. logo 223 KB → 10 KB).
+  Kaynak adres `config.php` → `media_base`.
 
 ## Ayarlar (`config.php`)
 

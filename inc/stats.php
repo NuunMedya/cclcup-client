@@ -338,56 +338,66 @@ function team_streak(array $results): array
     return ['label' => $count . ' maçtır ' . $labels[$last], 'count' => $count, 'type' => $last];
 }
 
-/** Bir maçtaki oyuncu katkı puanı (istatistiklere dayalı yıldız seçimi). */
-function contribution_score(array $c): float
-{
-    return ($c['goal'] ?? 0) * 3 + ($c['assist'] ?? 0) * 2 + ($c['save'] ?? 0) * 0.6
-        + ($c['chance'] ?? 0) * 0.6 + ($c['block'] ?? 0) * 0.6 + ($c['duel'] ?? 0) * 0.3
-        + ($c['aerial'] ?? 0) * 0.3 - ($c['yellow'] ?? 0) * 1 - ($c['red'] ?? 0) * 3 - ($c['own'] ?? 0) * 2;
-}
+const HIGHLIGHT_STATS = [
+    'goal' => ['En çok gol', 'gol'],
+    'assist' => ['En çok asist', 'asist'],
+    'save' => ['En çok kurtarış', 'kurtarış'],
+    'chance' => ['En çok pozisyon üreten', 'pozisyon'],
+    'block' => ['En çok kritik blok', 'blok'],
+    'duel' => ['En çok ikili mücadele', 'ikili'],
+    'aerial' => ['En çok hava topu', 'hava topu'],
+];
 
-/** Bir maçın istatistiklere göre öne çıkan oyuncuları. */
-function match_stars(int $matchId, int $limit = 3): array
+/**
+ * Verilen maçlardaki öne çıkanlar: her istatistikte en yüksek değere sahip
+ * oyuncu (doğrudan maç olaylarından; puanlama/formül yok).
+ */
+function highlights(array $matchIds): array
 {
     $model = season_model();
-    $rows = [];
-    foreach ($model['player_match'] as $pid => $byMatch) {
-        if (!isset($byMatch[$matchId])) continue;
-        $score = contribution_score($byMatch[$matchId]);
-        if ($score > 0) {
-            $rows[] = ['player' => $pid, 'score' => $score, 'c' => $byMatch[$matchId]];
-        }
-    }
-    usort($rows, static function ($a, $b) {
-        return $b['score'] <=> $a['score'];
-    });
-    return array_slice($rows, 0, $limit);
-}
-
-/** Son maç gününün yıldızları. */
-function matchday_stars(string $date, int $limit = 6): array
-{
-    $model = season_model();
-    $ids = [];
-    foreach ($model['played'] as $m) {
-        if (substr((string) $m['date'], 0, 10) === $date) {
-            $ids[(int) $m['id']] = $m;
-        }
-    }
-    $rows = [];
+    $ids = array_flip(array_map('intval', $matchIds));
+    $totals = [];
     foreach ($model['player_match'] as $pid => $byMatch) {
         foreach ($byMatch as $mid => $c) {
             if (!isset($ids[$mid])) continue;
-            $score = contribution_score($c);
-            if ($score > 0) {
-                $rows[] = ['player' => $pid, 'score' => $score, 'c' => $c, 'match' => $ids[$mid]];
+            foreach (array_keys(HIGHLIGHT_STATS) as $k) {
+                if (!empty($c[$k])) {
+                    $totals[$k][$pid]['value'] = ($totals[$k][$pid]['value'] ?? 0) + (int) $c[$k];
+                    $totals[$k][$pid]['match'] = $mid;
+                }
             }
         }
     }
-    usort($rows, static function ($a, $b) {
-        return $b['score'] <=> $a['score'];
-    });
-    return array_slice($rows, 0, $limit);
+    $out = [];
+    foreach (HIGHLIGHT_STATS as $k => [$label, $unit]) {
+        if (empty($totals[$k])) continue;
+        $rows = $totals[$k];
+        uasort($rows, static function ($a, $b) {
+            return $b['value'] <=> $a['value'];
+        });
+        $best = reset($rows);
+        $pid = (int) key($rows);
+        $ties = count(array_filter($rows, static function ($r) use ($best) {
+            return $r['value'] === $best['value'];
+        })) - 1;
+        $out[] = ['key' => $k, 'label' => $label, 'unit' => $unit, 'player' => $pid, 'value' => $best['value'], 'match' => $best['match'], 'ties' => $ties];
+    }
+    return $out;
+}
+
+/** Bir oyuncunun bu sezondaki gol dakikaları. */
+function player_goal_minutes(int $playerId): array
+{
+    $model = season_model();
+    $out = [];
+    foreach ($model['played'] as $m) {
+        foreach (match_goals($m, $model['events'][(int) $m['id']] ?? []) as $g) {
+            if (!$g['own'] && $g['player'] === $playerId) {
+                $out[] = ['minute' => $g['minute'], 'half' => $g['half'], 'kind' => $g['kind'], 'match' => $m];
+            }
+        }
+    }
+    return $out;
 }
 
 /* ------------------------------------------------------------------ */

@@ -24,7 +24,7 @@ usort($events, 'compare_events');
 $playerStats = $showScore ? ccl_match_player_stats($id) : [];
 $story = $showScore ? match_story($match) : null;
 $awards = match_awards($match);
-$stars = $showScore ? match_stars($id, 3) : [];
+$highlights = $showScore ? highlights([$id]) : [];
 $cover = match_cover($match);
 $gallery = match_gallery($match);
 $videoId = youtube_id(match_video_url($match));
@@ -44,7 +44,6 @@ foreach (['home' => $homeId, 'away' => $awayId] as $side => $tid) {
                 'img' => $p['playerImg'] ?? null,
                 'pos' => (string) ($p['position'] ?? ''),
                 'num' => (string) ($p['number'] ?? ''),
-                'rating' => $p['puan'] ?? null,
                 'role' => (string) ($p['role'] ?? 'starter'),
                 'captain' => !empty($p['captain']),
                 'side' => $side,
@@ -186,7 +185,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
 <article class="match-page">
 <header class="mh<?= $live ? ' is-live' : '' ?><?= $cover ? ' has-photo' : '' ?>">
   <div class="mh-bg" aria-hidden="true">
-    <?php if ($cover): ?><img src="<?= e($cover) ?>" alt=""><?php endif; ?>
+    <?php if ($cover): ?><img src="<?= e(media_url($cover, 1920)) ?>" alt=""><?php endif; ?>
   </div>
   <div class="container mh-inner">
     <div class="mh-meta">
@@ -261,106 +260,105 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
 </section>
 <?php endif; ?>
 
-<?php if ($showScore && ($awards || $stars)): ?>
+<?php if ($showScore && ($awards || $highlights)): ?>
 <section class="container section">
-  <div class="section-head"><h2><?= $awards ? 'Maçın Enleri' : 'Maçın Yıldızları' ?></h2><?php if (!$awards): ?><span class="muted small">Maç istatistiklerine göre</span><?php endif; ?></div>
-  <div class="award-grid">
-    <?php if ($awards): foreach ($awards as $key => $aw): ?>
-      <a class="award<?= $key === 'best_player' ? ' award-main' : '' ?>"<?= $aw['id'] ? ' href="' . e(player_url($aw['id'])) . '"' : '' ?>>
-        <?= player_avatar($aw['id'] ? $pimg($aw['id']) : null, $aw['name'], $key === 'best_player' ? 'lg' : 'md') ?>
-        <span class="award-label"><?= e($aw['label']) ?></span>
-        <strong><?= e($aw['name']) ?></strong>
-      </a>
-    <?php endforeach; else: foreach ($stars as $i => $st): $c = $st['c']; ?>
-      <a class="award<?= $i === 0 ? ' award-main' : '' ?>" href="<?= e(player_url($st['player'])) ?>">
-        <?= player_avatar($pimg($st['player']), $pname($st['player']), $i === 0 ? 'lg' : 'md') ?>
-        <span class="award-label"><?= $i === 0 ? 'Maçın Yıldızı' : ($i + 1) . '. sırada' ?></span>
-        <strong><?= e($pname($st['player'])) ?></strong>
-        <span class="award-stats">
-          <?php foreach (['goal' => 'gol', 'assist' => 'asist', 'save' => 'kurtarış', 'chance' => 'pozisyon', 'block' => 'blok'] as $k => $lbl): if (!empty($c[$k])): ?>
-            <span><b><?= (int) $c[$k] ?></b> <?= $lbl ?></span>
-          <?php endif; endforeach; ?>
-        </span>
-      </a>
-    <?php endforeach; endif; ?>
-  </div>
+  <?php if ($awards): ?>
+    <div class="section-head"><h2>Maçın Enleri</h2></div>
+    <div class="award-grid">
+      <?php foreach ($awards as $key => $aw): ?>
+        <a class="award<?= $key === 'best_player' ? ' award-main' : '' ?>"<?= $aw['id'] ? ' href="' . e(player_url($aw['id'])) . '"' : '' ?>>
+          <?= player_avatar($aw['id'] ? $pimg($aw['id']) : null, $aw['name'], $key === 'best_player' ? 'lg' : 'md') ?>
+          <span class="award-label"><?= e($aw['label']) ?></span>
+          <strong><?= e($aw['name']) ?></strong>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+  <?php if ($highlights): ?>
+    <div class="section-head<?= $awards ? ' section-gap' : '' ?>"><h2>Maçın Öne Çıkanları</h2></div>
+    <div class="hl-grid">
+      <?php foreach ($highlights as $h): ?>
+        <a class="hl" href="<?= e(player_url($h['player'])) ?>">
+          <?= player_avatar($pimg($h['player']), $pname($h['player']), 'md') ?>
+          <span class="hl-text"><small><?= e($h['label']) ?></small><strong><?= e($pname($h['player'])) ?></strong></span>
+          <span class="hl-val"><b><?= (int) $h['value'] ?></b><small><?= e($h['unit']) ?></small></span>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
 </section>
 <?php endif; ?>
 
 <?php if ($hasEvents): ?>
 <section class="container section" id="akis">
-  <div class="card">
-    <div class="section-head"><h2>Maç Akışı</h2>
-      <div class="chips" role="group" aria-label="Olay filtresi">
-        <button type="button" class="chip active" data-feed-filter="key">Önemli anlar</button>
-        <button type="button" class="chip" data-feed-filter="all">Tüm olaylar</button>
+  <div class="grid-feed">
+    <div class="card card-flat">
+      <div class="section-head">
+        <h2>Maç Akışı</h2>
+        <div class="seg" role="group" aria-label="Olay filtresi">
+          <button type="button" class="active" data-feed-filter="key">Önemli</button>
+          <button type="button" data-feed-filter="all">Tümü</button>
+        </div>
       </div>
-    </div>
-
-    <div class="momentum" aria-label="Zaman çizelgesi">
-      <div class="momentum-team"><?= team_badge(team_logo($homeId), $home, 'xs') ?></div>
-      <div class="momentum-track">
-        <?php foreach ($feed as $f): if (!$f['info']['key']) continue;
-          $left = min(100, max(0, $f['min'] / max(1, $maxMinute) * 100)); ?>
-          <span class="mo mo-<?= e($f['side']) ?> mo-<?= e($f['info']['type']) ?>" style="left: <?= round($left, 2) ?>%" title="<?= e($f['min'] . "' " . $f['info']['label'] . ' — ' . ($f['info']['type'] === 'sub' ? $pname($f['ev']['oyuncu_giren_id'] ?? 0) : $pname($f['ev']['oyuncu_id'] ?? 0))) ?>"><?= event_icon($f['info']['type']) ?></span>
+      <div class="tl-head"><span><?= team_badge(team_logo($homeId), $home, 'xs') ?> <?= e($home) ?></span><span><?= e($away) ?> <?= team_badge(team_logo($awayId), $away, 'xs') ?></span></div>
+      <ol class="tl" data-feed>
+        <?php
+        $lastHalf = 0;
+        $htShown = false;
+        foreach ($feed as $f):
+          $ev = $f['ev'];
+          if ($f['half'] !== $lastHalf):
+            if ($lastHalf === 1): ?>
+              <li class="tl-mark"><span>Devre arası · <?= $halfScore[1]['home'] ?>-<?= $halfScore[1]['away'] ?></span></li>
+            <?php elseif ($lastHalf === 0): ?>
+              <li class="tl-mark"><span>Başlama düdüğü</span></li>
+            <?php endif;
+            $lastHalf = $f['half'];
+          endif;
+          $type = $f['info']['type'];
+          $isGoal = $type === 'goal' || $type === 'own-goal';
+          if ($type === 'sub') {
+              $main = '<a href="' . e(player_url((int) $ev['oyuncu_giren_id'])) . '">' . e($pname($ev['oyuncu_giren_id'] ?? 0)) . '</a>';
+              $sub = '<span class="tl-out">↓ ' . e($pname($ev['oyuncu_cikan_id'] ?? 0)) . '</span>';
+          } else {
+              $main = (int) ($ev['oyuncu_id'] ?? 0) ? '<a href="' . e(player_url((int) $ev['oyuncu_id'])) . '">' . e($pname($ev['oyuncu_id'])) . '</a>' : e($f['side'] === 'home' ? $home : $away);
+              $sub = '<span>' . e($f['info']['label']) . '</span>';
+          }
+          $content = '<span class="tl-ico">' . event_icon($type) . '</span><span class="tl-txt"><span class="tl-name">' . $main . '</span>' . $sub . '</span>'
+              . ($isGoal && isset($f['score']) ? '<span class="tl-score">' . e($f['score']) . '</span>' : ''); ?>
+          <li class="tl-row tl-<?= e($f['side']) ?> tl-t-<?= e($type) ?><?= $f['info']['key'] ? ' is-key' : ' is-minor' ?>">
+            <div class="tl-cell tl-left"><?= $f['side'] === 'home' ? $content : '' ?></div>
+            <div class="tl-min"><?= $f['min'] ?>'</div>
+            <div class="tl-cell tl-right"><?= $f['side'] === 'away' ? $content : '' ?></div>
+          </li>
         <?php endforeach; ?>
-        <span class="mo-axis"><i>0'</i><i><?= (int) round($maxMinute / 2) ?>'</i><i><?= $maxMinute ?>'</i></span>
-      </div>
-      <div class="momentum-team"><?= team_badge(team_logo($awayId), $away, 'xs') ?></div>
+        <?php if ($played): ?><li class="tl-mark tl-end"><span>Maç sonu · <?= $hs ?>-<?= $as ?></span></li><?php endif; ?>
+      </ol>
     </div>
 
-    <ol class="feed" data-feed>
-      <?php $lastHalf = 0; foreach ($feed as $f):
-        $ev = $f['ev'];
-        if ($f['half'] !== $lastHalf):
-          $lastHalf = $f['half']; ?>
-          <li class="feed-divider"><span><?= $f['half'] === 1 ? 'İlk yarı' : 'İkinci yarı' ?></span></li>
-        <?php endif;
-        $type = $f['info']['type'];
-        if ($type === 'sub') {
-            $who = '<a href="' . e(player_url((int) $ev['oyuncu_giren_id'])) . '"><b>' . e($pname($ev['oyuncu_giren_id'] ?? 0)) . '</b></a> oyuna girdi, <a href="' . e(player_url((int) $ev['oyuncu_cikan_id'])) . '">' . e($pname($ev['oyuncu_cikan_id'] ?? 0)) . '</a> çıktı';
-        } else {
-            $who = (int) ($ev['oyuncu_id'] ?? 0) ? '<a href="' . e(player_url((int) $ev['oyuncu_id'])) . '"><b>' . e($pname($ev['oyuncu_id'])) . '</b></a>' : '<b>' . e($f['side'] === 'home' ? $home : $away) . '</b>';
-        } ?>
-        <li class="feed-item feed-<?= e($f['side']) ?> ev-type-<?= e($type) ?><?= $f['info']['key'] ? ' is-key' : ' is-minor' ?>">
-          <span class="feed-min"><?= $f['min'] ?>'</span>
-          <span class="feed-icon"><?= event_icon($type) ?></span>
-          <span class="feed-text">
-            <span class="feed-label"><?= e($f['info']['label']) ?><?= isset($f['score']) ? ' <b class="feed-score">' . e($f['score']) . '</b>' : '' ?></span>
-            <span class="feed-who"><?= $who ?> <small><?= e($f['side'] === 'home' ? $home : $away) ?></small></span>
-          </span>
-        </li>
+    <div class="card card-flat" id="istatistik">
+      <div class="section-head">
+        <h2>İstatistikler</h2>
+        <div class="seg" role="group" aria-label="Devre">
+          <button type="button" class="active" data-half="0">Maç</button>
+          <button type="button" data-half="1">1. Y</button>
+          <button type="button" data-half="2">2. Y</button>
+        </div>
+      </div>
+      <div class="tl-head"><span><?= team_badge(team_logo($homeId), $home, 'xs') ?></span><span><?= team_badge(team_logo($awayId), $away, 'xs') ?></span></div>
+      <?php foreach ([0, 1, 2] as $half): ?>
+        <div class="st-list" data-half-panel="<?= $half ?>"<?= $half ? ' hidden' : '' ?>>
+          <?php if ($half === 0 && $possH + $possA > 0) echo stat_row('Topla oynama', $possH, $possA, '%'); ?>
+          <?php $any = false; foreach ($statKeys as $k => $label):
+            $hv = $stat[$k]['home'][$half]; $av = $stat[$k]['away'][$half];
+            if ($hv + $av === 0) continue;
+            $any = true;
+            echo stat_row($label, $hv, $av);
+          endforeach; ?>
+          <?php if (!$any): ?><p class="muted small">Bu devrede kayıtlı olay yok.</p><?php endif; ?>
+        </div>
       <?php endforeach; ?>
-    </ol>
-  </div>
-</section>
-
-<section class="container section" id="istatistik">
-  <div class="card">
-    <div class="section-head">
-      <h2>Takım İstatistikleri</h2>
-      <div class="chips" role="group" aria-label="Devre">
-        <button type="button" class="chip active" data-half="0">Maç</button>
-        <button type="button" class="chip" data-half="1">1. yarı</button>
-        <button type="button" class="chip" data-half="2">2. yarı</button>
-      </div>
     </div>
-    <div class="cmp-head"><span><?= team_badge(team_logo($homeId), $home, 'xs') ?> <?= e($home) ?></span><span><?= e($away) ?> <?= team_badge(team_logo($awayId), $away, 'xs') ?></span></div>
-    <?php foreach ([0, 1, 2] as $half): ?>
-      <div class="cmp-group" data-half-panel="<?= $half ?>"<?= $half ? ' hidden' : '' ?>>
-        <?php if ($half === 0 && $possH + $possA > 0) echo compare_bar('Topla oynama', $possH, $possA, '%'); ?>
-        <?php foreach ($statKeys as $k => $label):
-          $hv = $stat[$k]['home'][$half]; $av = $stat[$k]['away'][$half];
-          if ($hv + $av === 0) continue;
-          echo compare_bar($label, $hv, $av);
-        endforeach; ?>
-        <?php if ($half === 0 && $stat['chance']['home'][0] + $stat['chance']['away'][0] > 0):
-          $convH = ratio($stat['goal']['home'][0], $stat['goal']['home'][0] + $stat['chance']['home'][0]);
-          $convA = ratio($stat['goal']['away'][0], $stat['goal']['away'][0] + $stat['chance']['away'][0]);
-          echo compare_bar('Gole çevrilen atak oranı', round($convH * 100), round($convA * 100), '%');
-        endif; ?>
-      </div>
-    <?php endforeach; ?>
   </div>
 </section>
 <?php endif; ?>
@@ -387,7 +385,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
               $parts = preg_split('/\s+/u', trim($p['name'])) ?: [$p['name']];
               $short = end($parts); ?>
               <a class="pp" href="<?= e(player_url($pid)) ?>" title="<?= e($p['name'] . ($p['pos'] ? ' · ' . $p['pos'] : '')) ?>">
-                <span class="pp-shirt"><?= $p['num'] !== '' ? e($p['num']) : e(position_short($p['pos']) ?: '•') ?><?php if ($p['captain']): ?><i class="pp-c">C</i><?php endif; ?></span>
+                <span class="pp-photo"><?= player_avatar($pimg($pid), $p['name'], 'pitch') ?><?php if ($p['num'] !== ''): ?><i class="pp-num"><?= e($p['num']) ?></i><?php endif; ?><?php if ($p['captain']): ?><i class="pp-c">C</i><?php endif; ?></span>
                 <span class="pp-name"><?= e(mb_strtoupper($short)) ?></span>
                 <span class="pp-marks"><?= $marksHtml($pid) ?></span>
               </a>
@@ -417,11 +415,10 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
             <?php foreach ($group as $pid => $p): ?>
               <li>
                 <span class="lineup-num"><?= e($p['num']) ?></span>
-                <?= player_avatar($p['img'], $p['name'], 'xs') ?>
+                <?= player_avatar($pimg($pid), $p['name'], 'xs') ?>
                 <a href="<?= e(player_url($pid)) ?>"><?= e($p['name']) ?></a>
                 <?php if ($p['captain']): ?><span class="captain" title="Kaptan">C</span><?php endif; ?>
                 <span class="pp-marks"><?= $marksHtml($pid) ?></span>
-                <?php if ($p['rating'] !== null && $p['rating'] !== '' && (float) $p['rating'] > 0): ?><span class="rating" title="Maç puanı"><?= e(num($p['rating'], 1)) ?></span><?php endif; ?>
                 <span class="pos-tag pos-<?= e(strtolower(position_short($p['pos'])) ?: 'na') ?>"><?= e(position_short($p['pos']) ?: '–') ?></span>
               </li>
             <?php endforeach; ?>
@@ -446,7 +443,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
       <table class="table">
         <thead><tr>
           <th class="left">Oyuncu</th><th>Mevki</th><th title="Gol">G</th><th title="Asist">A</th><th title="Pozisyon üretme">Poz</th>
-          <th title="Kurtarış">Kur</th><th title="Kritik blok">Blk</th><th class="hide-sm" title="Kazanılan ikili mücadele">İkili</th><th class="hide-sm" title="Kazanılan hava topu">Hava</th><th class="hide-sm" title="Faul">Faul</th><th title="Kart">Kart</th><th title="Maç puanı">Puan</th>
+          <th title="Kurtarış">Kur</th><th title="Kritik blok">Blk</th><th class="hide-sm" title="Kazanılan ikili mücadele">İkili</th><th class="hide-sm" title="Kazanılan hava topu">Hava</th><th class="hide-sm" title="Faul">Faul</th><th title="Kart">Kart</th>
         </tr></thead>
         <tbody>
         <?php foreach ($psBySide[$side] as $p): $pid = (int) $p['playerId']; ?>
@@ -462,7 +459,6 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
             <td class="hide-sm"><?= (int) $p['aerialDuelsWon'] ?: '–' ?></td>
             <td class="hide-sm"><?= (int) $p['fouls'] ?: '–' ?></td>
             <td><?= str_repeat(event_icon('yellow'), (int) $p['yellowCards']) . str_repeat(event_icon('red'), (int) $p['redCards']) ?: '–' ?></td>
-            <td><?= (float) $p['totalPoints'] ? '<span class="rating">' . e(num($p['totalPoints'], 1)) . '</span>' : '–' ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -531,7 +527,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
     $links = array_values(array_diff($gallery, $images)); ?>
     <?php if ($images): ?>
       <div class="gallery">
-        <?php foreach ($images as $img): ?><a href="<?= e($img) ?>" target="_blank" rel="noopener"><img src="<?= e($img) ?>" alt="Maçtan kare" loading="lazy"></a><?php endforeach; ?>
+        <?php foreach ($images as $img): ?><a href="<?= e(media_url($img)) ?>" target="_blank" rel="noopener"><img src="<?= e(media_url($img, 640)) ?>" alt="Maçtan kare" loading="lazy"></a><?php endforeach; ?>
       </div>
     <?php endif; ?>
     <?php foreach ($links as $l): ?><a class="btn btn-ghost" href="<?= e($l) ?>" target="_blank" rel="noopener">📷 Maç fotoğraflarının tamamı</a><?php endforeach; ?>
