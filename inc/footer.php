@@ -15,6 +15,7 @@ $contact = $cfg['contact'];
     <div>
       <h4>Turnuva</h4>
       <ul>
+        <li><a href="haberler.php">Haberler</a></li>
         <li><a href="fikstur.php">Fikstür &amp; Sonuçlar</a></li>
         <li><a href="puan-durumu.php">Puan Durumu</a></li>
         <li><a href="takimlar.php">Takımlar</a></li>
@@ -37,6 +38,6 @@ $contact = $cfg['contact'];
     <span>Veri altyapısı: <a href="<?= e($cfg['elitlig_url']) ?>" target="_blank" rel="noopener">ElitLig</a></span>
   </div>
 </footer>
-<script src="assets/js/main.js?v=1" defer></script>
+<script src="assets/js/main.js?v=2" defer></script>
 </body>
 </html>
