@@ -35,6 +35,9 @@ return [
     'cache_dir'  => __DIR__ . '/cache',
     'timeout'    => (int) $env('CCL_API_TIMEOUT', 15),
 
+    // Geçmiş sezonların bulunduğu arşiv sitesi
+    'archive_url' => $env('CCL_ARCHIVE_URL', 'https://arsiv.cclcup.com'),
+
     // Site bilgileri
     'site_name'  => 'CCL CUP',
     'site_title' => 'Natura Dünyası CCL CUP — Kurumlar Arası Futbol Turnuvası',

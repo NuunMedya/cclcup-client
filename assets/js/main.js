@@ -158,4 +158,67 @@
     }, { rootMargin: '-40% 0px -55% 0px' });
     Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) io.observe(el); });
   }
+  // ---- Kurallarda arama ----
+  var ruleSearch = document.querySelector('[data-rule-search]');
+  if (ruleSearch) {
+    var items = Array.prototype.slice.call(document.querySelectorAll('.rule-item'));
+    items.forEach(function (it) { it.setAttribute('data-orig', it.innerHTML); });
+    var norm = function (t) { return t.toLocaleLowerCase('tr-TR'); };
+    var escapeRe = function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var timer;
+    ruleSearch.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var q = norm(ruleSearch.value.trim());
+        var any = false;
+        document.querySelectorAll('[data-rule-section]').forEach(function (sec) {
+          var secHit = false;
+          sec.querySelectorAll('.rule-item').forEach(function (it) {
+            it.innerHTML = it.getAttribute('data-orig');
+            if (!q) { it.hidden = false; return; }
+            var hit = norm(it.textContent).indexOf(q) !== -1 || norm(sec.querySelector('.rule-head').textContent).indexOf(q) !== -1;
+            it.hidden = !hit;
+            if (hit) {
+              secHit = true;
+              var re = new RegExp('(' + escapeRe(ruleSearch.value.trim()) + ')', 'gi');
+              var walker = document.createTreeWalker(it, NodeFilter.SHOW_TEXT);
+              var nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+              nodes.forEach(function (n) {
+                re.lastIndex = 0;
+                if (!re.test(n.nodeValue)) return;
+                re.lastIndex = 0;
+                var span = document.createElement('span');
+                span.innerHTML = n.nodeValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(re, '<mark class="rule-hit">$1</mark>');
+                n.parentNode.replaceChild(span, n);
+              });
+              var det = it.querySelector('details'); if (det) det.open = true;
+            }
+          });
+          sec.hidden = q ? !secHit : false;
+          if (!q || secHit) any = true;
+        });
+        var empty = document.querySelector('[data-rule-empty]');
+        if (empty) empty.hidden = any;
+      }, 150);
+    });
+  }
+  document.querySelectorAll('[data-print]').forEach(function (b) {
+    b.addEventListener('click', function () { window.print(); });
+  });
+
+  // ---- Kurallar içindekiler: aktif bölüm ----
+  var tocLinks = document.querySelectorAll('.rules-toc a[href^="#"]');
+  if (tocLinks.length && 'IntersectionObserver' in window) {
+    var tmap = {};
+    tocLinks.forEach(function (a) { tmap[a.getAttribute('href').slice(1)] = a; });
+    var tio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting && tmap[en.target.id]) {
+          tocLinks.forEach(function (a) { a.classList.remove('active'); });
+          tmap[en.target.id].classList.add('active');
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    Object.keys(tmap).forEach(function (id) { var el = document.getElementById(id); if (el) tio.observe(el); });
+  }
 })();
