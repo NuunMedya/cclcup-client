@@ -37,26 +37,26 @@ function api_get(string $path, array $params = [], $ttl = null)
     }
 
     $cacheFile = rtrim($cfg['cache_dir'], '/') . '/' . sha1($url) . '.json';
-    if ($ttl > 0 && is_file($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
+    $age = is_file($cacheFile) ? time() - (int) filemtime($cacheFile) : null;
+    if ($ttl > 0 && $age !== null && $age < $ttl) {
         $cached = json_decode((string) @file_get_contents($cacheFile), true);
         if ($cached !== null) {
             return $cached;
         }
     }
 
+    // Süresi yeni dolmuş kayıt: ziyaretçiye hemen eskisini göster, yenilemeyi
+    // yanıt gönderildikten sonra yap (yalnızca PHP-FPM'de mümkün).
+    if ($ttl > 0 && $age !== null && $age < 1800 && function_exists('fastcgi_finish_request')) {
+        $cached = json_decode((string) @file_get_contents($cacheFile), true);
+        if ($cached !== null) {
+            api_queue_refresh($url, $cacheFile, $path);
+            return $cached;
+        }
+    }
+
     try {
-        $body = http_fetch($url, (int) $cfg['timeout']);
-        $data = json_decode($body, true);
-        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
-            throw new ApiError('Geçersiz yanıt: ' . $path);
-        }
-        if ($ttl > 0 && is_dir($cfg['cache_dir']) && is_writable($cfg['cache_dir'])) {
-            $tmp = $cacheFile . '.' . uniqid('', true) . '.tmp';
-            if (@file_put_contents($tmp, $body) !== false) {
-                @rename($tmp, $cacheFile);
-            }
-        }
-        return $data;
+        return api_fetch_and_store($url, $cacheFile, $path, $ttl > 0);
     } catch (ApiError $e) {
         // Yedek: eski önbellek kaydı varsa onu kullan.
         if (is_file($cacheFile)) {
@@ -67,6 +67,51 @@ function api_get(string $path, array $params = [], $ttl = null)
         }
         throw $e;
     }
+}
+
+function api_fetch_and_store(string $url, string $cacheFile, string $path, bool $store)
+{
+    $cfg = ccl_config();
+    $body = http_fetch($url, (int) $cfg['timeout']);
+    $data = json_decode($body, true);
+    if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+        throw new ApiError('Geçersiz yanıt: ' . $path);
+    }
+    if ($store && is_dir($cfg['cache_dir']) && is_writable($cfg['cache_dir'])) {
+        $tmp = $cacheFile . '.' . uniqid('', true) . '.tmp';
+        if (@file_put_contents($tmp, $body) !== false) {
+            @rename($tmp, $cacheFile);
+        }
+    }
+    return $data;
+}
+
+/** Yanıt gönderildikten sonra yenilenecek önbellek kayıtları. */
+function api_queue_refresh(string $url, string $cacheFile, string $path): void
+{
+    static $queue = null;
+    if ($queue === null) {
+        $queue = [];
+        register_shutdown_function(static function () use (&$queue) {
+            if (!$queue) {
+                return;
+            }
+            fastcgi_finish_request();
+            foreach ($queue as $item) {
+                // Aynı kaydı başka bir istek az önce yenilediyse atla.
+                if (is_file($item[1]) && time() - (int) filemtime($item[1]) < 5) {
+                    continue;
+                }
+                @touch($item[1]); // eşzamanlı isteklerin aynı yenilemeyi yapmasını önle
+                try {
+                    api_fetch_and_store($item[0], $item[1], $item[2], true);
+                } catch (Exception $e) {
+                    // Eski kayıt kullanılmaya devam eder.
+                }
+            }
+        });
+    }
+    $queue[$cacheFile] = [$url, $cacheFile, $path];
 }
 
 function http_fetch(string $url, int $timeout): string
@@ -122,7 +167,10 @@ function api_try(string $path, array $params = [], $ttl = null, $default = [])
     try {
         return api_get($path, $params, $ttl);
     } catch (Exception $e) {
-        $GLOBALS['ccl_api_errors'][] = $e->getMessage();
+        // 404 "kayıt yok" demektir (ör. piyasa değeri hesaplanmamış); hata sayılmaz.
+        if ((int) $e->getCode() !== 404) {
+            $GLOBALS['ccl_api_errors'][] = $e->getMessage();
+        }
         return $default;
     }
 }
@@ -222,6 +270,7 @@ function ccl_player_stats(array $opts = []): array
         'teamId' => $opts['teamId'] ?? null,
         'search' => $opts['search'] ?? null,
         'position' => $opts['position'] ?? null,
+        'matchId' => $opts['matchId'] ?? null,
     ], null, []);
     return [
         'players' => is_array($data['players'] ?? null) ? $data['players'] : [],
@@ -277,6 +326,213 @@ function ccl_player_events(int $id): array
     $data = api_try('/mac-olaylari', ['oyuncu_id' => $id], null, []);
     $rows = $data['macOlaylari'] ?? $data;
     return is_array($rows) ? $rows : [];
+}
+
+/**
+ * Sezondaki tüm maç olayları (gol, kart, kurtarış, pozisyon...). Tek istekte
+ * maç id listesiyle çekilir; maç sayısı büyürse parçalara bölünür.
+ * Dönüş: mac_id => [olaylar]
+ */
+function ccl_season_events(): array
+{
+    static $byMatch = null;
+    if ($byMatch !== null) {
+        return $byMatch;
+    }
+    $byMatch = [];
+    $ids = [];
+    foreach (ccl_matches() as $m) {
+        if (match_is_played($m) || match_is_live($m)) {
+            $ids[] = (int) $m['id'];
+        }
+    }
+    foreach (array_chunk($ids, 120) as $chunk) {
+        $data = api_try('/mac-olaylari', ['mac_ids' => implode(',', $chunk), 'limit' => 20000], null, []);
+        $rows = isset($data['macOlaylari']) && is_array($data['macOlaylari']) ? $data['macOlaylari'] : [];
+        foreach ($rows as $ev) {
+            $byMatch[(int) $ev['mac_id']][] = $ev;
+        }
+    }
+    foreach ($byMatch as &$events) {
+        usort($events, 'compare_events');
+    }
+    unset($events);
+    return $byMatch;
+}
+
+function compare_events(array $a, array $b): int
+{
+    return [(int) ($a['devre'] ?? 1), (int) ($a['dakika'] ?? 0), (int) $a['id']]
+        <=> [(int) ($b['devre'] ?? 1), (int) ($b['dakika'] ?? 0), (int) $b['id']];
+}
+
+/** Bir maçtaki oyuncuların maç içi istatistikleri (gol, asist, kurtarış, puan...). */
+function ccl_match_player_stats(int $matchId): array
+{
+    return ccl_player_stats(['matchId' => $matchId, 'limit' => 100, 'sort' => 'mostValuable'])['players'];
+}
+
+/** Oyuncunun tüm ElitLig kariyeri (bütün lig ve sezonlar). */
+function ccl_player_career(int $id): array
+{
+    $data = api_try('/api/players/' . $id . '/statistics', [], 600, []);
+    return isset($data['statistics']) && is_array($data['statistics']) ? $data['statistics'] : [];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Maç medyası ve haber alanları                                      */
+/* ------------------------------------------------------------------ */
+
+function media_value($v): string
+{
+    $v = trim((string) $v);
+    return ($v === '' || strtolower($v) === 'none' || strtolower($v) === 'null') ? '' : $v;
+}
+
+/** Maçın kapak fotoğrafı (elitlig panelinden yüklenen match_picture). */
+function match_cover(array $m): string
+{
+    $url = media_value($m['match_picture'] ?? '');
+    return preg_match('#^https?://#i', $url) ? $url : '';
+}
+
+function match_video_url(array $m): string
+{
+    $url = media_value($m['match_video'] ?? '');
+    return preg_match('#^https?://#i', $url) ? $url : '';
+}
+
+function match_interview_url(array $m): string
+{
+    foreach (['match_interview', 'post_roportaj'] as $k) {
+        $url = media_value($m[$k] ?? '');
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+    }
+    return '';
+}
+
+/** YouTube bağlantısından video kimliği. */
+function youtube_id(string $url): string
+{
+    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|live/|shorts/))([A-Za-z0-9_-]{11})~', $url, $m)) {
+        return $m[1];
+    }
+    return '';
+}
+
+/** Panelde girilen "maçın enleri" (post_enler / post_macin_enleri JSON). */
+function match_awards(array $m): array
+{
+    foreach (['post_enler', 'post_macin_enleri'] as $k) {
+        $raw = media_value($m[$k] ?? '');
+        if ($raw === '') {
+            continue;
+        }
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            continue;
+        }
+        $labels = [
+            'best_player' => 'Maçın Oyuncusu', 'best_goalkeeper' => 'En İyi Kaleci', 'best_defender' => 'En İyi Defans',
+            'best_midfielder' => 'En İyi Orta Saha', 'best_forward' => 'En İyi Forvet', 'best_goal' => 'Maçın Golü',
+            'best_save' => 'Maçın Kurtarışı',
+        ];
+        $out = [];
+        foreach ($labels as $key => $label) {
+            $name = trim((string) ($data[$key . '_name'] ?? $data[$key] ?? ''));
+            if ($name !== '') {
+                $out[$key] = ['label' => $label, 'name' => $name, 'id' => (int) ($data[$key . '_id'] ?? 0)];
+            }
+        }
+        if ($out) {
+            return $out;
+        }
+    }
+    return [];
+}
+
+/** Oyuncunun bu sezondaki maç günlüğü (rakip, skor, puan, gol, asist...). */
+function ccl_player_match_log(int $id): array
+{
+    $s = ccl_scope();
+    $data = api_try('/oyuncular/' . $id . '/match-log', [
+        'cityId' => $s['cityId'], 'leagueId' => $s['leagueId'], 'seasonId' => $s['seasonId'], 'limit' => 100,
+    ], null, []);
+    return [
+        'matches' => isset($data['matches']) && is_array($data['matches']) ? $data['matches'] : [],
+        'summary' => isset($data['summary']) && is_array($data['summary']) ? $data['summary'] : [],
+    ];
+}
+
+/** Oyuncunun ElitLig'deki tüm sezonları. */
+function ccl_player_seasons(int $id): array
+{
+    $data = api_try('/oyuncular/' . $id . '/season-stats', [], 600, []);
+    return is_array($data) && isset($data[0]) ? $data : [];
+}
+
+function ccl_player_market_value(int $id): array
+{
+    $data = api_try('/api/players/' . $id . '/market-value', [], 600, []);
+    return isset($data['currentValue']) ? $data : [];
+}
+
+/** Yayınlanmış "haftanın takımı / enleri" setleri. */
+function ccl_weekly_awards(int $limit = 6): array
+{
+    $s = ccl_scope();
+    $data = api_try('/api/weekly-awards/public', [
+        'cityId' => $s['cityId'], 'leagueId' => $s['leagueId'], 'seasonId' => $s['seasonId'], 'limit' => $limit,
+    ], 300, []);
+    return isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
+}
+
+/** Yalnızca CCL CUP ligi için yazılmış haberler (genel ElitLig haberleri hariç). */
+function ccl_news(int $limit = 12): array
+{
+    $s = ccl_scope();
+    $data = api_try('/api/news', [
+        'cityId' => $s['cityId'], 'leagueId' => $s['leagueId'], 'seasonId' => $s['seasonId'], 'limit' => $limit,
+    ], 300, []);
+    $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
+    return array_values(array_filter($items, static function ($n) use ($s) {
+        return (int) ($n['league_id'] ?? 0) === $s['leagueId'];
+    }));
+}
+
+function ccl_team_followers(int $id): int
+{
+    $data = api_try('/api/team-followers/' . $id . '/count', [], 600, []);
+    return (int) ($data['count'] ?? 0);
+}
+
+/** Maç galerisindeki fotoğraf adresleri (virgül/satır ayrımlı ya da JSON dizi). */
+function match_gallery(array $m): array
+{
+    $raw = media_value($m['match_images'] ?? '');
+    if ($raw === '') {
+        return [];
+    }
+    $list = json_decode($raw, true);
+    if (!is_array($list)) {
+        $list = preg_split('/[\s,]+/', $raw) ?: [];
+    }
+    $out = [];
+    foreach ($list as $u) {
+        $u = trim((string) (is_array($u) ? ($u['url'] ?? '') : $u));
+        if (preg_match('#^https?://#i', $u)) {
+            $out[] = $u;
+        }
+    }
+    return array_values(array_unique($out));
+}
+
+/** Görsel dosyası mı (galeri bağlantısı değil)? */
+function is_image_url(string $u): bool
+{
+    return (bool) preg_match('#\.(jpe?g|png|webp|gif)(\?.*)?$#i', $u);
 }
 
 /* ------------------------------------------------------------------ */

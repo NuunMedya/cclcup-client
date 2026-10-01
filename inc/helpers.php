@@ -194,3 +194,19 @@ function qs_int(string $key): int
     $v = qs($key);
     return ctype_digit($v) ? (int) $v : 0;
 }
+
+function mb_strlen_safe(string $s): int
+{
+    return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : count(preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) ?: []);
+}
+
+/** Yüzde biçimi: 0.456 => "%46" */
+function pct($ratio): string
+{
+    return '%' . (int) round(((float) $ratio) * 100);
+}
+
+function ratio($a, $b): float
+{
+    return (float) $b > 0 ? (float) $a / (float) $b : 0.0;
+}

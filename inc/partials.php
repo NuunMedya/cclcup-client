@@ -148,3 +148,96 @@ function render_api_notice(): string
     }
     return '<div class="container"><div class="notice">Bazı veriler şu anda yüklenemedi. Lütfen birkaç dakika sonra sayfayı yenileyin.</div></div>';
 }
+
+/**
+ * Maç kapağı: panelde yüklenmiş kapak fotoğrafı varsa o, yoksa iki takımın
+ * logolarıyla oluşturulan tasarım kapak.
+ */
+function render_cover(array $m, string $size = 'md', bool $withScore = true): string
+{
+    $photo = match_cover($m);
+    $homeId = (int) $m['home_team_id'];
+    $awayId = (int) $m['away_team_id'];
+    $home = (string) $m['first_team_name'];
+    $away = (string) $m['second_team_name'];
+    $showScore = $withScore && (match_is_played($m) || match_is_live($m));
+
+    if ($photo) {
+        return '<div class="cover cover-' . e($size) . ' cover-photo"><img src="' . e($photo) . '" alt="' . e($home . ' - ' . $away . ' maçından kare') . '" loading="lazy"></div>';
+    }
+    $seed = ($homeId * 7 + $awayId * 13) % 4;
+    ob_start(); ?>
+    <div class="cover cover-<?= e($size) ?> cover-gen cover-v<?= $seed ?>" aria-hidden="true">
+      <span class="cover-logo cover-logo-home"><?= team_badge(team_logo($homeId), $home, 'cover') ?></span>
+      <span class="cover-center">
+        <?php if ($showScore): ?>
+          <b><?= (int) $m['first_team_score'] ?></b><i></i><b><?= (int) $m['second_team_score'] ?></b>
+        <?php else: ?>
+          <b class="vs">VS</b>
+        <?php endif; ?>
+      </span>
+      <span class="cover-logo cover-logo-away"><?= team_badge(team_logo($awayId), $away, 'cover') ?></span>
+      <span class="cover-mark">CCL CUP</span>
+    </div>
+    <?php
+    return (string) ob_get_clean();
+}
+
+/** Haber kartı (manşet altı / haber listesi). */
+function render_story_card(array $m, string $variant = 'card'): string
+{
+    $story = match_story($m);
+    ob_start(); ?>
+    <a class="story story-<?= e($variant) ?>" href="<?= e(match_url((int) $m['id'])) ?>">
+      <?= render_cover($m, $variant === 'card' ? 'md' : 'sm') ?>
+      <span class="story-body">
+        <span class="story-kicker"><?= e($story['kicker']) ?> · <?= e(fmt_date($m)) ?></span>
+        <span class="story-title"><?= e($story['headline']) ?></span>
+        <?php if ($variant === 'card'): ?>
+          <span class="story-summary"><?= e(mb_substr($story['summary'], 0, 150)) ?><?= mb_strlen_safe($story['summary']) > 150 ? '…' : '' ?></span>
+        <?php endif; ?>
+      </span>
+    </a>
+    <?php
+    return (string) ob_get_clean();
+}
+
+/** Büyük istatistik kutusu. */
+function stat_tile(string $label, $value, string $sub = '', string $class = ''): string
+{
+    return '<div class="tile ' . e($class) . '"><span class="tile-label">' . e($label) . '</span><strong class="tile-value">' . e((string) $value) . '</strong>'
+        . ($sub !== '' ? '<span class="tile-sub">' . e($sub) . '</span>' : '') . '</div>';
+}
+
+/** İki takım karşılaştırma çubuğu. */
+function compare_bar(string $label, $home, $away, string $suffix = ''): string
+{
+    $h = (float) $home;
+    $a = (float) $away;
+    $total = $h + $a;
+    $pct = $total > 0 ? round($h / $total * 100) : 50;
+    $hw = $h > $a ? ' is-lead' : '';
+    $aw = $a > $h ? ' is-lead' : '';
+    return '<div class="cmp"><div class="cmp-labels"><b class="' . trim($hw) . '">' . e(num($home, fmod($h, 1.0) ? 1 : 0) . $suffix) . '</b><span>' . e($label) . '</span><b class="' . trim($aw) . '">' . e(num($away, fmod($a, 1.0) ? 1 : 0) . $suffix) . '</b></div>'
+        . '<div class="cmp-track"><span class="c-home" style="width:' . ($total > 0 ? $pct : 50) . '%"></span><span class="c-away" style="width:' . ($total > 0 ? 100 - $pct : 50) . '%"></span></div></div>';
+}
+
+/** Yatay tek seri çubuk (yüzdelik vb.). */
+function meter_row(string $label, float $ratio, string $valueText, string $note = ''): string
+{
+    $ratio = max(0, min(1, $ratio));
+    return '<div class="meter"><div class="meter-head"><span>' . e($label) . '</span><b>' . e($valueText) . '</b></div>'
+        . '<div class="meter-track"><span style="width:' . round($ratio * 100, 1) . '%"></span></div>'
+        . ($note !== '' ? '<small>' . e($note) . '</small>' : '') . '</div>';
+}
+
+/** Paylaşım bağlantıları. */
+function share_links(string $title): string
+{
+    $url = ccl_config('site_url') . ($_SERVER['REQUEST_URI'] ?? '/');
+    $text = rawurlencode($title . ' ' . $url);
+    return '<div class="share"><span>Paylaş</span>'
+        . '<a href="https://wa.me/?text=' . $text . '" target="_blank" rel="noopener" aria-label="WhatsApp ile paylaş">WhatsApp</a>'
+        . '<a href="https://twitter.com/intent/tweet?text=' . $text . '" target="_blank" rel="noopener" aria-label="X ile paylaş">X</a>'
+        . '<button type="button" data-copy="' . e($url) . '">Bağlantıyı kopyala</button></div>';
+}

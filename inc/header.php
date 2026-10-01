@@ -6,6 +6,7 @@ $pageTitle = !empty($page['title']) ? $page['title'] . ' | ' . $cfg['site_name']
 $description = $page['description'] ?? ($cfg['site_name'] . ' ' . ($scope['seasonName'] ?: '') . ' fikstür, sonuçlar, puan durumu ve oyuncu istatistikleri.');
 $nav = [
     'home'      => ['index.php', 'Ana Sayfa'],
+    'news'      => ['haberler.php', 'Haberler'],
     'fixtures'  => ['fikstur.php', 'Fikstür & Sonuçlar'],
     'standings' => ['puan-durumu.php', 'Puan Durumu'],
     'teams'     => ['takimlar.php', 'Takımlar'],
@@ -24,12 +25,13 @@ $active = $page['nav'] ?? '';
   <meta property="og:title" content="<?= e($pageTitle) ?>">
   <meta property="og:description" content="<?= e($description) ?>">
   <meta property="og:type" content="website">
+  <?php if (!empty($page['image'])): ?><meta property="og:image" content="<?= e($page['image']) ?>"><meta name="twitter:card" content="summary_large_image"><?php endif; ?>
   <meta property="og:site_name" content="<?= e($cfg['site_name']) ?>">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=1">
+  <link rel="stylesheet" href="assets/css/style.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">İçeriğe geç</a>
