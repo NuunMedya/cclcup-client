@@ -9,6 +9,10 @@
   RewriteRule ^(inc|cache)(/|$) - [F,L]
   RewriteRule ^config\.php$ - [F,L]
   RewriteRule ^(README\.md|\.git) - [F,L]
+
+  # Kısa adresler: /kurallar (sondaki / kaldırılır)
+  RewriteRule ^kurallar/$ /kurallar [R=301,L]
+  RewriteRule ^kurallar$ kurallar.php [L]
 </IfModule>
 
 <IfModule mod_headers.c>

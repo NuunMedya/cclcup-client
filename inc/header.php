@@ -7,10 +7,12 @@ $description = $page['description'] ?? ($cfg['site_name'] . ' ' . ($scope['seaso
 $nav = [
     'home'      => ['index.php', 'Ana Sayfa'],
     'news'      => ['haberler.php', 'Haberler'],
-    'fixtures'  => ['fikstur.php', 'Fikstür & Sonuçlar'],
+    'fixtures'  => ['fikstur.php', 'Fikstür'],
     'standings' => ['puan-durumu.php', 'Puan Durumu'],
     'teams'     => ['takimlar.php', 'Takımlar'],
     'stats'     => ['istatistikler.php', 'İstatistikler'],
+    'rules'     => ['kurallar', 'Kurallar'],
+    'archive'   => [$cfg['archive_url'], 'Arşiv', true],
 ];
 $active = $page['nav'] ?? '';
 ?><!doctype html>
@@ -37,7 +39,7 @@ $active = $page['nav'] ?? '';
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=3">
+  <link rel="stylesheet" href="assets/css/style.css?v=4">
 </head>
 <body>
 <a class="skip-link" href="#main">İçeriğe geç</a>
@@ -51,8 +53,8 @@ $active = $page['nav'] ?? '';
       <span></span><span></span><span></span>
     </button>
     <nav id="site-nav" class="site-nav" aria-label="Ana menü">
-      <?php foreach ($nav as $key => [$href, $label]): ?>
-        <a href="<?= e($href) ?>"<?= $active === $key ? ' class="active" aria-current="page"' : '' ?>><?= e($label) ?></a>
+      <?php foreach ($nav as $key => $item): $external = !empty($item[2]); ?>
+        <a href="<?= e($item[0]) ?>"<?= $active === $key ? ' class="active" aria-current="page"' : '' ?><?= $external ? ' class="nav-ext" target="_blank" rel="noopener"' : '' ?>><?= e($item[1]) ?><?= $external ? ' <span aria-hidden="true">↗</span>' : '' ?></a>
       <?php endforeach; ?>
     </nav>
   </div>

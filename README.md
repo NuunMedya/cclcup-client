@@ -14,7 +14,8 @@ girildiği anda bu sitede de görünür (en fazla `cache_ttl` saniye gecikmeyle)
 |---|---|
 | `index.php` | Dönen **manşet** (maç haberleri, kapak fotoğrafları), skor bandı, sezon rakamları, sıradaki maç geri sayımı, maç gününün öne çıkanları, puan durumu, gol/asist/kurtarış liderleri, turnuva rekorları, gol dakika ve tür grafikleri, haber kartları |
 | `haberler.php` | Tüm maç haberleri; panelden CCL CUP ligi için yazılan haberler (`?haber=`) |
-| `fikstur.php` | Tüm maçlar gün gün; Tümü / Fikstür / Sonuçlar sekmeleri ve takım filtresi |
+| `fikstur.php` | Sade fikstür: gün gün maç listesi (gün başına maç/gol özeti), Tümü / Sonuçlar / Fikstür seçici, takım filtresi |
+| `kurallar` (`kurallar.php`) | Turnuva kuralları ve katılım şartları: özet kartlar, içindekiler, arama, yazdırma. Metin `inc/rules.php` içinde |
 | `puan-durumu.php` | Detaylı puan tablosu (sezonda grup varsa grup sekmeleri) |
 | `takimlar.php` | Takım kartları |
 | `takim.php?id=` | Takım profili: son maçlar şeridi, G/B/M dağılımı, sıralama grafiği, iç saha/deplasman, rekorlar, takım liderleri, sonuç kartları, gol analizi, takımın golcüleri, mevkilere göre fotoğraflı kadro, tarihçe/başarılar |
@@ -93,6 +94,12 @@ ve oyuncuların CCL CUP dışındaki maçları kullanılmaz.
 Site açılmıyorsa (500 hatası) `/kontrol.php` sayfasını açın: PHP sürümünü,
 eklentileri, `cache/` iznini, elitlig-server bağlantısını kontrol eder ve ana
 sayfanın verdiği hatayı gösterir.
+
+`cclcup.com/kurallar` kısa adresi `.htaccess` içindeki yönlendirmeyle çalışır.
+Nginx kullanılıyorsa: `location = /kurallar { rewrite ^ /kurallar.php last; }`
+
+Menüdeki **Arşiv** bağlantısı geçmiş sezonlar için `https://arsiv.cclcup.com` adresine
+gider (`config.php` → `archive_url`).
 
 Yerelde denemek için:
 

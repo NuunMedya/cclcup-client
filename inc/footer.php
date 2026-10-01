@@ -19,6 +19,8 @@ $contact = $cfg['contact'];
         <li><a href="puan-durumu.php">Puan Durumu</a></li>
         <li><a href="takimlar.php">Takımlar</a></li>
         <li><a href="istatistikler.php">İstatistikler</a></li>
+        <li><a href="kurallar">Kurallar</a></li>
+        <li><a href="<?= e($cfg['archive_url']) ?>" target="_blank" rel="noopener">Arşiv (geçmiş sezonlar) ↗</a></li>
       </ul>
     </div>
     <div>
@@ -37,6 +39,6 @@ $contact = $cfg['contact'];
     <span>Natura Dünyası CCL CUP · Kurumlar Arası Futbol Turnuvası</span>
   </div>
 </footer>
-<script src="assets/js/main.js?v=3" defer></script>
+<script src="assets/js/main.js?v=4" defer></script>
 </body>
 </html>
