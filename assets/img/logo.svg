@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CCL CUP">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd56b"/>
+      <stop offset="1" stop-color="#e09a00"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 3 56 11v19c0 15.5-10.2 26.6-24 31C18.2 56.6 8 45.5 8 30V11L32 3Z" fill="#111c45" stroke="url(#g)" stroke-width="3"/>
+  <path d="M22 18h20v6c0 6-4.5 10.5-10 10.5S22 30 22 24v-6Z" fill="url(#g)"/>
+  <path d="M22 20h-5c0 5 2.5 8 6 8.5M42 20h5c0 5-2.5 8-6 8.5" fill="none" stroke="url(#g)" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M29 34.5h6v5h-6zM24 40h16v3.5H24z" fill="url(#g)"/>
+  <text x="32" y="54" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="8.5" fill="#ffffff" letter-spacing=".5">CCL</text>
+</svg>
