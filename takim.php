@@ -101,6 +101,13 @@ foreach ($kindClasses as $k => $cls) {
 }
 $goalTotal = array_sum(array_column($kindParts, 'value'));
 
+// Takımın maç yayınları ve fotoğraf albümleri (canlı maç önce, sonra yeniden eskiye)
+$mediaMatches = array_merge(
+    array_values(array_filter($matches, 'match_is_live')),
+    array_reverse(array_map(static function ($r) { return $r['match']; }, $results))
+);
+$mediaWall = render_media_wall($mediaMatches);
+
 $page = ['title' => $name, 'nav' => 'teams', 'description' => $name . ' — CCL CUP maçları, kadrosu, istatistikleri ve form durumu.', 'image' => $logo];
 require __DIR__ . '/inc/header.php';
 echo render_api_notice();
@@ -138,7 +145,7 @@ echo render_api_notice();
 
 <nav class="subnav" aria-label="Takım bölümleri">
   <div class="container subnav-inner">
-    <a href="#genel">Genel Bakış</a><?php if ($teamAwards): ?><a href="#oduller">Ödüller</a><?php endif; ?><a href="#maclar">Maçlar</a><a href="#analiz">Gol Analizi</a><a href="#kadro">Kadro</a>
+    <a href="#genel">Genel Bakış</a><?php if ($teamAwards): ?><a href="#oduller">Ödüller</a><?php endif; ?><a href="#maclar">Maçlar</a><?php if ($mediaWall): ?><a href="#medya">Yayınlar & Fotoğraflar</a><?php endif; ?><a href="#analiz">Gol Analizi</a><a href="#kadro">Kadro</a>
     <?php if (!empty($details['history']) || !empty($details['achievements'])): ?><a href="#hakkinda">Hakkında</a><?php endif; ?>
   </div>
 </nav>
@@ -276,6 +283,13 @@ echo render_api_notice();
     </div>
   </div>
 </section>
+
+<?php if ($mediaWall): ?>
+<section class="container section" id="medya">
+  <div class="section-head"><h2>Yayınlar & Fotoğraflar</h2><span class="muted small">Takımın maçlarından</span></div>
+  <?= $mediaWall ?>
+</section>
+<?php endif; ?>
 
 <section class="container section" id="analiz">
   <div class="section-head"><h2>Gol Analizi</h2></div>

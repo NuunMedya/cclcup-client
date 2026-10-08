@@ -28,11 +28,14 @@ $highlights = $showScore ? highlights([$id]) : [];
 $cover = match_cover($match);
 $gallery = match_gallery($match);
 $streamUrl = match_video_url($match);
-$videoId = youtube_id($streamUrl);
 $mediaLinks = match_media_links($match);
-$liveEmbed = $live && $videoId !== '';
 $interviewUrl = match_interview_url($match);
-$interviewId = youtube_id($interviewUrl);
+$streamEmbed = $streamUrl !== '' ? video_embed($streamUrl, $live) : null;
+$interviewEmbed = $interviewUrl !== '' && $interviewUrl !== $streamUrl ? video_embed($interviewUrl) : null;
+$photoSet = match_photo_set($match);
+$hasPhotos = $photoSet['items'] || $photoSet['embed'] !== '' || $photoSet['album'] !== '';
+// Yayın bölümü: link girildiyse her zaman, girilmediyse maç önce/canlıyken yer tutucu.
+$showBroadcast = $streamUrl !== '' || $interviewEmbed || !$played;
 $possH = (int) ($match['first_team_percentage'] ?? 0);
 $possA = (int) ($match['second_team_percentage'] ?? 0);
 
@@ -244,14 +247,17 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
           <span><small>Maçın Oyuncusu</small><b><?= e($mvp['name']) ?></b></span>
         </a>
       <?php endif; ?>
-      <?php if ($liveEmbed): ?>
-        <div class="mlinks mlinks-hero"><a class="mlink mlink-stream is-live" href="#yayin"><span class="mlink-ico" aria-hidden="true">▶</span>Canlı izle</a>
-          <?php foreach ($mediaLinks as $l): if ($l['type'] === 'stream') continue; ?>
-            <a class="mlink mlink-<?= e($l['type']) ?>" href="<?= e($l['url']) ?>"<?= $l['external'] ? ' target="_blank" rel="noopener"' : '' ?>><span class="mlink-ico" aria-hidden="true"><?= $l['icon'] ?></span><?= e($l['label']) ?></a>
+      <?php if ($mediaLinks): ?>
+        <div class="mlinks mlinks-hero">
+          <?php foreach ($mediaLinks as $l):
+            // Gömülebilen içerik sayfadaki oynatıcıya / galeriye götürür.
+            $href = $l['url']; $ext = $l['external'];
+            if ($l['type'] === 'stream' && $streamEmbed) { $href = '#yayin'; $ext = false; }
+            if ($l['type'] === 'interview' && $interviewEmbed) { $href = '#yayin'; $ext = false; }
+            if ($l['type'] === 'photos' && ($photoSet['items'] || $photoSet['embed'] !== '')) { $href = '#fotograflar'; $ext = false; } ?>
+            <a class="mlink mlink-<?= e($l['type']) ?><?= $l['type'] === 'stream' && $live ? ' is-live' : '' ?>" href="<?= e($href) ?>"<?= $ext ? ' target="_blank" rel="noopener"' : '' ?>><span class="mlink-ico" aria-hidden="true"><?= $l['icon'] ?></span><?= e($l['label']) ?><?php if ($l['type'] === 'photos' && $photoSet['total']): ?> <small><?= (int) $photoSet['total'] ?></small><?php endif; ?></a>
           <?php endforeach; ?>
         </div>
-      <?php else: ?>
-        <?= render_media_links($match, 'hero') ?>
       <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -260,21 +266,54 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
 
 <nav class="subnav" aria-label="Maç bölümleri">
   <div class="container subnav-inner">
-    <?php if ($liveEmbed): ?><a href="#yayin">Canlı Yayın</a><?php endif; ?>
+    <?php if ($showBroadcast): ?><a href="#yayin"><?= $live ? 'Canlı Yayın' : ($streamUrl !== '' || !$interviewEmbed ? 'Maç Yayını' : 'Röportaj') ?></a><?php endif; ?>
     <?php if ($story): ?><a href="#haber">Maç Haberi</a><?php endif; ?>
     <?php if ($showScore && $awards): ?><a href="#enler">Maçın Enleri</a><?php endif; ?>
     <?php if ($hasEvents): ?><a href="#akis">Maç Akışı</a><a href="#istatistik">İstatistikler</a><?php endif; ?>
     <a href="#kadrolar">Kadrolar</a>
     <?php if ($playerStats): ?><a href="#oyuncular">Oyuncu Performansları</a><?php endif; ?>
     <a href="#karsilastirma">Karşılaştırma</a>
-    <?php if ($mediaLinks): ?><a href="#medya">Yayın & Fotoğraflar</a><?php endif; ?>
+    <?php if ($hasPhotos): ?><a href="#fotograflar">Fotoğraflar</a><?php endif; ?>
   </div>
 </nav>
 
-<?php if ($liveEmbed): ?>
+<?php if ($showBroadcast):
+  $mainIsStream = $streamUrl !== '';
+  $teaser = spread_items($photoSet['items'], 4); ?>
 <section class="container section" id="yayin">
-  <div class="section-head"><h2><span class="dot-live"></span> Canlı Yayın</h2><a class="more" href="<?= e($streamUrl) ?>" target="_blank" rel="noopener">YouTube'da aç →</a></div>
-  <div class="video video-live"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($videoId) ?>?autoplay=1&amp;mute=1" title="Canlı yayın" allow="autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+  <div class="section-head">
+    <h2><?php if ($live): ?><span class="dot-live"></span> Canlı Yayın<?php elseif ($mainIsStream || !$interviewEmbed): ?>Maç Yayını<?php else: ?>Röportaj<?php endif; ?></h2>
+    <?php if ($streamUrl !== ''): ?><a class="more" href="<?= e($streamUrl) ?>" target="_blank" rel="noopener">Yayını yeni sekmede aç ↗</a><?php endif; ?>
+  </div>
+  <div class="bc<?= $interviewEmbed && $mainIsStream || $teaser || $photoSet['album'] !== '' ? '' : ' bc-single' ?>">
+    <div class="bc-main">
+      <?php if ($mainIsStream && $streamEmbed): ?>
+        <?= render_embed($streamEmbed, $live ? 'Canlı yayın' : 'Maç yayını', $live ? 'live' : 'stream', false) ?>
+      <?php elseif ($mainIsStream): ?>
+        <a class="bc-empty bc-link" href="<?= e($streamUrl) ?>" target="_blank" rel="noopener"><span class="bc-ico">▶</span><strong><?= $live ? 'Canlı yayını izle' : 'Maç yayınını izle' ?></strong><small><?= e((string) parse_url($streamUrl, PHP_URL_HOST)) ?></small></a>
+      <?php elseif ($interviewEmbed): ?>
+        <?= render_embed($interviewEmbed, 'Röportaj', 'interview', false) ?>
+      <?php else: ?>
+        <div class="bc-empty"><span class="bc-ico">📺</span><strong><?= $live ? 'Canlı yayın bağlantısı bekleniyor' : 'Canlı yayın maç saatinde burada' ?></strong><small>Yayın bağlantısı eklendiğinde maçı bu sayfadan canlı izleyebilirsiniz.</small></div>
+      <?php endif; ?>
+    </div>
+    <?php if ($interviewEmbed && $mainIsStream || $teaser || $photoSet['album'] !== ''): ?>
+    <aside class="bc-side">
+      <?php if ($interviewEmbed && $mainIsStream): ?>
+        <div class="bc-card"><h3 class="bc-title">🎙 Röportaj</h3><?= render_embed($interviewEmbed, 'Röportaj', 'interview') ?></div>
+      <?php endif; ?>
+      <?php if ($teaser || $photoSet['album'] !== ''): ?>
+        <a class="bc-card bc-photos" href="<?= $teaser ? '#fotograflar' : e($photoSet['album']) ?>"<?= $teaser ? '' : ' target="_blank" rel="noopener"' ?>>
+          <h3 class="bc-title">📷 Maç Fotoğrafları<?php if ($photoSet['total']): ?> <small><?= (int) $photoSet['total'] ?></small><?php endif; ?></h3>
+          <?php if ($teaser): ?>
+            <span class="bc-mosaic"><?php foreach ($teaser as $ph): ?><img src="<?= e($ph['thumb']) ?>" alt="" loading="lazy" referrerpolicy="no-referrer"><?php endforeach; ?></span>
+          <?php endif; ?>
+          <span class="bc-more"><?= $teaser ? 'Galeriyi aç ↓' : 'Albümü aç ↗' ?></span>
+        </a>
+      <?php endif; ?>
+    </aside>
+    <?php endif; ?>
+  </div>
 </section>
 <?php endif; ?>
 
@@ -294,16 +333,57 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
 
 <?php if ($showScore && ($awards || $highlights)): ?>
 <section class="container section" id="enler">
-  <?php if ($awards): ?>
+  <?php if ($awards):
+    $psById = [];
+    foreach ($playerStats as $ps) $psById[(int) $ps['playerId']] = $ps;
+    $teamOf = static function (int $pid) use ($people, $index, $homeId, $awayId) {
+        if (isset($people[$pid])) return $people[$pid]['side'] === 'home' ? $homeId : $awayId;
+        return (int) ($index[$pid]['teamId'] ?? 0);
+    };
+    $teamChip = static function (int $tid) {
+        $t = ccl_team_map()[$tid] ?? null;
+        return $t ? '<span class="en-team">' . team_badge(team_logo($tid), (string) $t['name'], 'xs') . '<span>' . e($t['name']) . '</span></span>' : '';
+    };
+    $awardMeta = [
+        'best_goalkeeper' => ['tag' => 'KL', 'cls' => 'pos-kl'], 'best_defender' => ['tag' => 'DF', 'cls' => 'pos-df'],
+        'best_midfielder' => ['tag' => 'OS', 'cls' => 'pos-os'], 'best_forward' => ['tag' => 'FV', 'cls' => 'pos-fv'],
+        'best_goal' => ['tag' => '⚽', 'cls' => 'en-moment'], 'best_save' => ['tag' => '🧤', 'cls' => 'en-moment'],
+    ];
+    $mvp = $awards['best_player'] ?? null; ?>
     <div class="section-head"><h2>Maçın Enleri</h2></div>
-    <div class="award-grid">
-      <?php foreach ($awards as $key => $aw): ?>
-        <a class="award<?= $key === 'best_player' ? ' award-main' : '' ?>"<?= $aw['id'] ? ' href="' . e(player_url($aw['id'])) . '"' : '' ?>>
-          <?= player_avatar($aw['id'] ? $pimg($aw['id']) : null, $aw['name'], $key === 'best_player' ? 'lg' : 'md') ?>
-          <span class="award-label"><?= e($aw['label']) ?></span>
-          <strong><?= e($aw['name']) ?></strong>
+    <div class="enler<?= $mvp ? '' : ' enler-no-mvp' ?>">
+      <?php if ($mvp):
+        $mps = $mvp['id'] ? ($psById[$mvp['id']] ?? null) : null;
+        $chips = [];
+        if ($mps) {
+            foreach (['totalGoals' => 'gol', 'assists' => 'asist', 'saves' => 'kurtarış', 'chancesCreated' => 'pozisyon', 'criticalBlocks' => 'blok'] as $f => $u) {
+                if ((int) ($mps[$f] ?? 0) > 0) $chips[] = '<span><b>' . (int) $mps[$f] . '</b> ' . $u . '</span>';
+            }
+        } ?>
+        <a class="en-mvp"<?= $mvp['id'] ? ' href="' . e(player_url($mvp['id'])) . '"' : '' ?>>
+          <span class="en-mvp-photo"><?= player_avatar($mvp['id'] ? $pimg($mvp['id']) : null, $mvp['name'], 'card') ?></span>
+          <span class="en-mvp-body">
+            <span class="en-mvp-label"><i aria-hidden="true">★</i> Maçın Oyuncusu</span>
+            <strong class="en-mvp-name"><?= e($mvp['name']) ?></strong>
+            <?= $mvp['id'] ? $teamChip($teamOf($mvp['id'])) : '' ?>
+            <?php if ($chips): ?><span class="en-mvp-stats"><?= implode('', array_slice($chips, 0, 3)) ?></span><?php endif; ?>
+          </span>
         </a>
-      <?php endforeach; ?>
+      <?php endif; ?>
+      <?php if (count($awards) > ($mvp ? 1 : 0)): ?>
+      <div class="en-list">
+        <?php foreach ($awards as $key => $aw): if ($key === 'best_player') continue; $meta = $awardMeta[$key] ?? ['tag' => '★', 'cls' => 'en-moment']; ?>
+          <a class="en-item"<?= $aw['id'] ? ' href="' . e(player_url($aw['id'])) . '"' : '' ?>>
+            <span class="en-photo"><?= player_avatar($aw['id'] ? $pimg($aw['id']) : null, $aw['name'], 'lg') ?><i class="en-tag <?= e($meta['cls']) ?>"><?= e($meta['tag']) ?></i></span>
+            <span class="en-txt">
+              <small><?= e($aw['label']) ?></small>
+              <strong><?= e($aw['name']) ?></strong>
+              <?= $aw['id'] ? $teamChip($teamOf($aw['id'])) : '' ?>
+            </span>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
   <?php if ($highlights): ?>
@@ -539,27 +619,23 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
   <?php endif; ?>
 </section>
 
-<?php if ($mediaLinks): ?>
-<section class="container section" id="medya">
-  <div class="section-head"><h2>Yayın & Fotoğraflar</h2></div>
-  <?= render_media_links($match) ?>
-  <div class="media-grid section-gap">
-    <?php if ($videoId && !$liveEmbed): ?>
-      <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($videoId) ?>" title="Maç yayını" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><span class="video-cap"><?= $played ? 'Maç yayını' : 'Canlı yayın' ?></span></div>
-    <?php endif; ?>
-    <?php if ($interviewId && $interviewUrl !== $streamUrl): ?>
-      <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($interviewId) ?>" title="Röportaj" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><span class="video-cap">Röportaj</span></div>
-    <?php endif; ?>
+<?php if ($hasPhotos): ?>
+<section class="container section" id="fotograflar">
+  <div class="section-head">
+    <h2>Maç Fotoğrafları</h2>
+    <?php if ($photoSet['album'] !== ''): ?><a class="more" href="<?= e($photoSet['album']) ?>" target="_blank" rel="noopener"><?= $photoSet['total'] ? (int) $photoSet['total'] . ' fotoğraf · ' : '' ?>Albümün tamamı ↗</a><?php endif; ?>
   </div>
-  <?php if ($gallery):
-    $images = array_values(array_filter($gallery, 'is_image_url'));
-    $links = array_values(array_diff($gallery, $images)); ?>
-    <?php if ($images): ?>
-      <div class="gallery">
-        <?php foreach ($images as $img): ?><a href="<?= e(media_url($img)) ?>" target="_blank" rel="noopener"><img src="<?= e(media_url($img, 640)) ?>" alt="Maçtan kare" loading="lazy"></a><?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-    <?php foreach (array_slice($links, 1) as $l): ?><a class="btn btn-ghost btn-sm" href="<?= e($l) ?>" target="_blank" rel="noopener">📷 Diğer fotoğraf albümü</a><?php endforeach; ?>
+  <?php if ($photoSet['items']): ?>
+    <div class="pgal" data-lightbox>
+      <?php foreach ($photoSet['items'] as $i => $ph): ?>
+        <a class="pgal-item<?= $i >= 12 ? ' is-more' : '' ?>" href="<?= e($ph['full']) ?>" data-lb-item<?= $i >= 12 ? ' hidden' : '' ?>><img referrerpolicy="no-referrer" src="<?= e($ph['thumb']) ?>" alt="<?= e($home . ' - ' . $away . ' maçından kare' . ($ph['name'] !== '' ? ' (' . $ph['name'] . ')' : '')) ?>" loading="lazy"></a>
+      <?php endforeach; ?>
+    </div>
+    <?php if (count($photoSet['items']) > 12): ?><div class="pgal-actions"><button type="button" class="btn btn-ghost btn-sm" data-pgal-more>Daha fazla fotoğraf göster</button></div><?php endif; ?>
+  <?php elseif ($photoSet['embed'] !== ''): ?>
+    <div class="pgal-embed"><iframe src="<?= e($photoSet['embed']) ?>" title="Maç fotoğrafları" loading="lazy"></iframe></div>
+  <?php else: ?>
+    <a class="bc-empty bc-link bc-short" href="<?= e($photoSet['album']) ?>" target="_blank" rel="noopener"><span class="bc-ico">📷</span><strong>Maç fotoğraflarını görüntüle</strong><small><?= e((string) parse_url($photoSet['album'], PHP_URL_HOST)) ?></small></a>
   <?php endif; ?>
 </section>
 <?php endif; ?>

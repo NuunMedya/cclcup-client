@@ -379,7 +379,15 @@ function ccl_match_player_stats(int $matchId): array
 function media_value($v): string
 {
     $v = trim((string) $v);
-    return ($v === '' || strtolower($v) === 'none' || strtolower($v) === 'null') ? '' : $v;
+    if ($v === '' || in_array(strtolower($v), ['none', 'null', '-'], true)) {
+        return '';
+    }
+    // Panele bağlantı yerine embed kodu (<iframe src="...">) yapıştırılmışsa adresini al.
+    if (stripos($v, '<iframe') !== false && preg_match('~\ssrc\s*=\s*["\']?([^"\'\s>]+)~i', $v, $m)) {
+        $v = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+        return strpos($v, '//') === 0 ? 'https:' . $v : $v;
+    }
+    return $v;
 }
 
 /** Maçın kapak fotoğrafı (yönetim panelinden yüklenen match_picture). */
@@ -409,10 +417,52 @@ function match_interview_url(array $m): string
 /** YouTube bağlantısından video kimliği. */
 function youtube_id(string $url): string
 {
-    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|live/|shorts/))([A-Za-z0-9_-]{11})~', $url, $m)) {
+    if (preg_match('~(?:youtu\.be/|youtube(?:-nocookie)?\.com/(?:watch\?(?:.*&)?v=|embed/|live/|shorts/|v/))([A-Za-z0-9_-]{11})~', $url, $m)) {
         return $m[1];
     }
     return '';
+}
+
+/**
+ * Video bağlantısını (ya da embed kodundan alınan adresi) sayfaya gömülebilir
+ * hâle getirir: YouTube, Facebook, Vimeo, Instagram ve hazır embed adresleri.
+ * Dönüş: ['src' => iframe adresi, 'thumb' => önizleme görseli|'' , 'provider' => ...] ya da null.
+ */
+function video_embed(string $url, bool $autoplay = false): ?array
+{
+    if (!preg_match('#^https?://#i', $url)) {
+        return null;
+    }
+    if (($yt = youtube_id($url)) !== '') {
+        return [
+            'provider' => 'youtube',
+            'src' => 'https://www.youtube-nocookie.com/embed/' . $yt . '?rel=0&modestbranding=1' . ($autoplay ? '&autoplay=1&mute=1' : ''),
+            'thumb' => 'https://i.ytimg.com/vi/' . $yt . '/hqdefault.jpg',
+            'id' => $yt,
+        ];
+    }
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    if (preg_match('~(^|\.)(facebook\.com|fb\.watch)$~', $host)) {
+        if (strpos($url, '/plugins/') !== false) {
+            return ['provider' => 'facebook', 'src' => $url, 'thumb' => '', 'id' => ''];
+        }
+        return ['provider' => 'facebook', 'src' => 'https://www.facebook.com/plugins/video.php?show_text=false&href=' . rawurlencode($url), 'thumb' => '', 'id' => ''];
+    }
+    if (preg_match('~vimeo\.com/(?:video/)?(\d+)~', $url, $m)) {
+        return ['provider' => 'vimeo', 'src' => 'https://player.vimeo.com/video/' . $m[1], 'thumb' => '', 'id' => $m[1]];
+    }
+    if (preg_match('~instagram\.com/(p|reel|tv)/([A-Za-z0-9_-]+)~', $url, $m)) {
+        return ['provider' => 'instagram', 'src' => 'https://www.instagram.com/' . $m[1] . '/' . $m[2] . '/embed', 'thumb' => '', 'id' => $m[2], 'tall' => true];
+    }
+    if (preg_match('~twitch\.tv/([A-Za-z0-9_]+)~', $url, $m)) {
+        $parent = (string) parse_url((string) ccl_config('site_url'), PHP_URL_HOST);
+        return ['provider' => 'twitch', 'src' => 'https://player.twitch.tv/?channel=' . $m[1] . '&parent=' . rawurlencode($parent ?: 'cclcup.com'), 'thumb' => '', 'id' => $m[1]];
+    }
+    // Panele doğrudan bir oynatıcının embed adresi girildiyse.
+    if (preg_match('~/(embed|player|plugins)/|player\.|/embed\b~i', $url)) {
+        return ['provider' => 'iframe', 'src' => $url, 'thumb' => '', 'id' => ''];
+    }
+    return null;
 }
 
 /** Panelde girilen "maçın enleri" (post_enler / post_macin_enleri JSON). */
@@ -463,19 +513,23 @@ function match_awards(array $m): array
 function match_media_links(array $m): array
 {
     $out = [];
+    $page = match_url((int) $m['id']);
     $stream = match_video_url($m);
     if ($stream !== '') {
         $label = match_is_live($m) ? 'Canlı izle' : (match_is_played($m) ? 'Maçı izle' : 'Canlı yayın');
-        $out[] = ['type' => 'stream', 'label' => $label, 'icon' => '▶', 'url' => $stream, 'external' => true];
+        $embed = video_embed($stream) !== null;
+        $out[] = ['type' => 'stream', 'label' => $label, 'icon' => '▶', 'url' => $embed ? $page . '#yayin' : $stream, 'external' => !$embed];
     }
     $photos = match_photos_url($m);
     if ($photos !== '') {
-        $external = strpos($photos, 'http') === 0;
-        $out[] = ['type' => 'photos', 'label' => 'Fotoğraflar', 'icon' => '📷', 'url' => $photos, 'external' => $external];
+        // Yandex Disk / Drive albümleri ve tek tek görseller maç sayfasındaki galeride açılır.
+        $internal = strpos($photos, 'http') !== 0 || preg_match('~(disk\.yandex\.|yadi\.sk|drive\.google\.com)~i', $photos);
+        $out[] = ['type' => 'photos', 'label' => 'Fotoğraflar', 'icon' => '📷', 'url' => $internal ? $page . '#fotograflar' : $photos, 'external' => !$internal];
     }
     $interview = match_interview_url($m);
     if ($interview !== '' && $interview !== $stream) {
-        $out[] = ['type' => 'interview', 'label' => 'Röportaj', 'icon' => '🎙', 'url' => $interview, 'external' => true];
+        $embed = video_embed($interview) !== null;
+        $out[] = ['type' => 'interview', 'label' => 'Röportaj', 'icon' => '🎙', 'url' => $embed ? $page . '#yayin' : $interview, 'external' => !$embed];
     }
     return $out;
 }
@@ -492,7 +546,7 @@ function match_photos_url(array $m): string
             return $u;
         }
     }
-    return $gallery ? match_url((int) $m['id']) . '#medya' : '';
+    return $gallery ? match_url((int) $m['id']) . '#fotograflar' : '';
 }
 
 /** Oyuncunun bu sezondaki maç günlüğü (rakip, skor, puan, gol, asist...). */
@@ -529,6 +583,122 @@ function ccl_news(int $limit = 12): array
     return array_values(array_filter($items, static function ($n) use ($s) {
         return (int) ($n['league_id'] ?? 0) === $s['leagueId'];
     }));
+}
+
+/**
+ * Fotoğraf albümü bağlantısını sayfada gösterilebilir hâle getirir.
+ * - Yandex Disk: herkese açık API'den fotoğraf önizlemeleri çekilir (30 dk önbellek).
+ * - Google Drive klasörü: Drive'ın gömülebilir klasör görünümü.
+ * Dönüş: ['provider', 'url', 'items' => [['thumb', 'full', 'name']], 'total', 'embed'] ya da null.
+ */
+function photo_album(string $url, int $limit = 60): ?array
+{
+    if (!preg_match('#^https?://#i', $url)) {
+        return null;
+    }
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+    if (preg_match('~(^|\.)(disk\.yandex\.[a-z.]+|yadi\.sk)$~', $host)) {
+        $parts = parse_url($url);
+        $segs = array_values(array_filter(explode('/', (string) ($parts['path'] ?? '')), 'strlen'));
+        if (count($segs) < 2 || !in_array($segs[0], ['d', 'i'], true)) {
+            return null;
+        }
+        $publicKey = $parts['scheme'] . '://' . $parts['host'] . '/' . $segs[0] . '/' . $segs[1];
+        $sub = count($segs) > 2 ? '/' . implode('/', array_map('rawurldecode', array_slice($segs, 2))) : '';
+        $data = external_json_cached('https://cloud-api.yandex.net/v1/disk/public/resources?' . http_build_query([
+            'public_key' => $publicKey, 'path' => $sub !== '' ? $sub : null, 'limit' => $limit,
+            'preview_size' => 'XL', 'preview_crop' => 'false', 'sort' => 'name',
+        ]), 1800);
+        if (!is_array($data)) {
+            return ['provider' => 'yandex', 'url' => $url, 'items' => [], 'total' => 0, 'embed' => ''];
+        }
+        $rows = ($data['type'] ?? '') === 'file' ? [$data] : ($data['_embedded']['items'] ?? []);
+        $items = [];
+        foreach ($rows as $it) {
+            if (($it['media_type'] ?? '') !== 'image' || empty($it['preview'])) continue;
+            $items[] = ['thumb' => (string) $it['preview'], 'full' => (string) $it['preview'], 'name' => (string) ($it['name'] ?? '')];
+        }
+        $total = (int) ($data['_embedded']['total'] ?? count($items));
+        return ['provider' => 'yandex', 'url' => $url, 'items' => $items, 'total' => max($total, count($items)), 'embed' => ''];
+    }
+
+    if ($host === 'drive.google.com' && preg_match('~/folders/([A-Za-z0-9_-]+)|[?&]id=([A-Za-z0-9_-]+)~', $url, $m)) {
+        $id = $m[1] !== '' ? $m[1] : $m[2];
+        return ['provider' => 'gdrive', 'url' => $url, 'items' => [], 'total' => 0, 'embed' => 'https://drive.google.com/embeddedfolderview?id=' . rawurlencode($id) . '#grid'];
+    }
+    return null;
+}
+
+/**
+ * Maçın bütün fotoğrafları: panelde tek tek girilen görseller + albüm(ler)den
+ * çekilen önizlemeler. Dönüş: items, total, album (ilk albüm adresi), embed (Drive).
+ */
+function match_photo_set(array $m, int $limit = 100): array
+{
+    $set = ['items' => [], 'total' => 0, 'album' => '', 'embed' => ''];
+    foreach (match_gallery($m) as $u) {
+        if (is_image_url($u)) {
+            $set['items'][] = ['thumb' => media_url($u, 640), 'full' => media_url($u, 1920), 'name' => ''];
+            $set['total']++;
+            continue;
+        }
+        if ($set['album'] === '') {
+            $set['album'] = $u;
+        }
+        $album = photo_album($u, $limit);
+        if (!$album) {
+            continue;
+        }
+        $set['items'] = array_merge($set['items'], $album['items']);
+        $set['total'] += $album['total'];
+        if ($set['embed'] === '' && $album['embed'] !== '') {
+            $set['embed'] = $album['embed'];
+        }
+    }
+    return $set;
+}
+
+/** Listeden eşit aralıklı $n öğe (ardışık çekilmiş benzer kareler yerine albümün geneli). */
+function spread_items(array $items, int $n): array
+{
+    $count = count($items);
+    if ($count <= $n) {
+        return $items;
+    }
+    $out = [];
+    for ($i = 0; $i < $n; $i++) {
+        $out[] = $items[(int) floor($i * $count / $n)];
+    }
+    return $out;
+}
+
+/** Dış servisten (API sunucusu dışında) JSON çeker ve cache/ altında saklar. */
+function external_json_cached(string $url, int $ttl)
+{
+    $cfg = ccl_config();
+    $file = rtrim($cfg['cache_dir'], '/') . '/x_' . sha1($url) . '.json';
+    $age = is_file($file) ? time() - (int) filemtime($file) : null;
+    if ($age !== null && $age < $ttl) {
+        $data = json_decode((string) @file_get_contents($file), true);
+        if ($data !== null) {
+            return $data;
+        }
+    }
+    try {
+        $body = http_fetch($url, min(10, (int) $cfg['timeout']));
+        $data = json_decode($body, true);
+        if (is_array($data) && is_dir($cfg['cache_dir']) && is_writable($cfg['cache_dir'])) {
+            @file_put_contents($file, $body);
+        }
+        return $data;
+    } catch (Exception $e) {
+        // Önizleme bağlantıları birkaç saat geçerli; eski kayıt en fazla 3 saat kullanılır.
+        if ($age !== null && $age < 10800) {
+            return json_decode((string) @file_get_contents($file), true);
+        }
+        return null;
+    }
 }
 
 /** Maç galerisindeki fotoğraf adresleri (virgül/satır ayrımlı ya da JSON dizi). */
