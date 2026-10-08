@@ -97,10 +97,12 @@ foreach ($kinds as $k) $kindClass[$k['key']] = $k['class'];
 
 // Maçın enleri ödülleri (panelden)
 $awardsWon = [];
+$awardsByMatch = [];
 foreach ($model['played'] as $m) {
     foreach (match_awards($m) as $aw) {
         if ($aw['id'] === $id) {
             $awardsWon[] = ['label' => $aw['label'], 'match' => $m];
+            $awardsByMatch[(int) $m['id']][] = $aw['label'];
         }
     }
 }
@@ -147,6 +149,7 @@ echo render_api_notice();
         <div class="accent"><b><?= $goals ?></b><span>Gol</span></div>
         <div><b><?= (int) $stats['assists'] ?></b><span>Asist</span></div>
         <?php if ($isKeeper || (int) $stats['saves'] > 0): ?><div><b><?= (int) $stats['saves'] ?></b><span>Kurtarış</span></div><?php endif; ?>
+        <?php if ($awardsWon): ?><a href="#oduller"><b><?= count($awardsWon) ?></b><span>Ödül</span></a><?php endif; ?>
       </div>
       <?php if ($logRows): ?>
         <div class="wdl" title="Oynadığı maçlarda takımının sonuçları">
@@ -221,7 +224,9 @@ echo render_api_notice();
       $res = ['G' => 'win', 'B' => 'draw', 'M' => 'loss'][$r['result']] ?? 'draw';
       $role = !empty($r['started']) ? 'İlk 11' : 'Yedek';
       if (isset($c['sub_in'])) $role = (int) $c['sub_in'] . "' oyuna girdi";
-      if (isset($c['sub_out'])) $role .= ' · ' . (int) $c['sub_out'] . "' çıktı"; ?>
+      if (isset($c['sub_out'])) $role .= ' · ' . (int) $c['sub_out'] . "' çıktı";
+      $links = render_media_links($m, 'sm'); ?>
+      <div class="mlog-item<?= $links ? ' has-foot' : '' ?>">
       <a class="mlog-card mlog-<?= $res ?>" href="<?= e(match_url($mid)) ?>">
         <span class="mlog-date"><?= e(fmt_date_short($m)['day'] . ' ' . fmt_date_short($m)['month']) ?></span>
         <span class="mlog-vs">
@@ -232,6 +237,7 @@ echo render_api_notice();
         <span class="mlog-contrib">
           <?php
             $bits = [];
+            foreach ($awardsByMatch[$mid] ?? [] as $label) $bits[] = '<span class="mc mc-award">' . ($label === 'Maçın Oyuncusu' ? '⭐ ' : '🏅 ') . e($label) . '</span>';
             if ((int) $r['goals']) $bits[] = '<span class="mc mc-goal">' . str_repeat('⚽', min(5, (int) $r['goals'])) . ((int) $r['goals'] > 5 ? ' ×' . (int) $r['goals'] : '') . '</span>';
             if ((int) $r['assists']) $bits[] = '<span class="mc"><b>' . (int) $r['assists'] . '</b> asist</span>';
             if ((int) $r['saves']) $bits[] = '<span class="mc"><b>' . (int) $r['saves'] . '</b> kurtarış</span>';
@@ -244,6 +250,8 @@ echo render_api_notice();
         </span>
         <span class="mlog-role"><?= e($role) ?></span>
       </a>
+      <?php if ($links): ?><div class="mlog-foot"><?= $links ?></div><?php endif; ?>
+      </div>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -273,7 +281,7 @@ echo render_api_notice();
       </div>
     <?php endif; ?>
     <?php if ($awardsWon): ?>
-      <div class="card"><div class="section-head"><h3>Ödüller</h3></div>
+      <div class="card" id="oduller"><div class="section-head"><h3>Ödüller</h3><span class="muted small">Maçın enleri</span></div>
         <ul class="achievements">
           <?php foreach ($awardsWon as $a): ?>
             <li><span class="trophy">🏅</span><a href="<?= e(match_url((int) $a['match']['id'])) ?>"><b><?= e($a['label']) ?></b><small><?= e($a['match']['first_team_name'] . ' - ' . $a['match']['second_team_name'] . ' · ' . fmt_date($a['match'])) ?></small></a></li>

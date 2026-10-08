@@ -32,6 +32,7 @@ function render_match_card(array $m, string $variant = 'row'): string
       <div class="match-meta">
         <?= $status ?>
         <span class="match-info"><?= e(fmt_date($m)) ?><?= $time ? ' · ' . e($time) : '' ?><?= !empty($m['match_field']) ? ' · ' . e($m['match_field']) : '' ?></span>
+        <?= match_media_flags($m) ?>
       </div>
       <div class="match-teams">
         <span class="team team-home<?= $homeCls ?>">
@@ -231,4 +232,35 @@ function stat_row(string $label, $home, $away, string $suffix = ''): string
         . '<span class="st-bars"><span class="stb stb-h"><i style="width:' . $hw . '%"></i></span><span class="stb stb-a"><i style="width:' . $aw . '%"></i></span></span></div>'
         . '<b class="st-v' . ($a > $h ? ' is-lead' : '') . '">' . $fmt($away) . '</b>'
         . '</div>';
+}
+
+/**
+ * Maçın yayın / fotoğraf / röportaj bağlantıları (buton satırı).
+ * $size: '' (normal), 'sm' (kart altı), 'hero' (maç başlığı).
+ */
+function render_media_links(array $m, string $size = ''): string
+{
+    $links = match_media_links($m);
+    if (!$links) {
+        return '';
+    }
+    $html = '<div class="mlinks' . ($size !== '' ? ' mlinks-' . e($size) : '') . '">';
+    foreach ($links as $l) {
+        $live = $l['type'] === 'stream' && match_is_live($m);
+        $html .= '<a class="mlink mlink-' . e($l['type']) . ($live ? ' is-live' : '') . '" href="' . e($l['url']) . '"'
+            . ($l['external'] ? ' target="_blank" rel="noopener"' : '') . '>'
+            . '<span class="mlink-ico" aria-hidden="true">' . $l['icon'] . '</span>' . e($l['label']) . '</a>';
+    }
+    return $html . '</div>';
+}
+
+/** Maç kartlarında yayın / fotoğraf bulunduğunu gösteren küçük ikonlar (bağlantı değil). */
+function match_media_flags(array $m): string
+{
+    $titles = ['stream' => 'Maç yayını var', 'photos' => 'Maç fotoğrafları var', 'interview' => 'Röportaj var'];
+    $html = '';
+    foreach (match_media_links($m) as $l) {
+        $html .= '<span class="mflag mflag-' . e($l['type']) . '" title="' . e($titles[$l['type']]) . '" aria-label="' . e($titles[$l['type']]) . '">' . $l['icon'] . '</span>';
+    }
+    return $html !== '' ? '<span class="mflags">' . $html . '</span>' : '';
 }
