@@ -118,6 +118,8 @@ $cardStats = $isKeeper
     ? [['MAÇ', $stats['matchesPlayed']], ['KURT', $stats['saves']], ['BLOK', $stats['criticalBlocks']], ['GOL', $goals], ['ASİST', $stats['assists']], ['POZ', $stats['chancesCreated']]]
     : [['MAÇ', $stats['matchesPlayed']], ['GOL', $goals], ['ASİST', $stats['assists']], ['POZ', $stats['chancesCreated']], ['BLOK', $stats['criticalBlocks']], ['İKİLİ', $stats['duelsWon']]];
 
+$mediaWall = render_media_wall(array_map(static function ($mid) use ($matchMap) { return $matchMap[$mid]; }, array_keys($logRows)), 4, 4);
+
 $page = ['title' => $name, 'nav' => 'stats', 'description' => $name . ' (' . $teamName . ') — CCL CUP istatistikleri ve maç maç performansı.', 'image' => $img];
 require __DIR__ . '/inc/header.php';
 echo render_api_notice();
@@ -256,6 +258,13 @@ echo render_api_notice();
   </div>
   <?php endif; ?>
 </section>
+
+<?php if ($mediaWall): ?>
+<section class="container section" id="medya">
+  <div class="section-head"><h2>Maçlarından Yayınlar & Fotoğraflar</h2></div>
+  <?= $mediaWall ?>
+</section>
+<?php endif; ?>
 
 <section class="container section">
   <div class="tiles tiles-6">

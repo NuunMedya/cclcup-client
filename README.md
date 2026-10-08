@@ -34,20 +34,23 @@ id'si verilirse sayfa 404 döner.
   ve raporu (`post_rapor` / `match_comment`) kullanılır. Girilmemişse skor, golcüler
   ve maç olaylarından otomatik haber başlığı ve özeti oluşturulur.
 - **Maçın enleri:** panelde seçilen en iyi oyuncu, kaleci, gol vb. (`post_enler`).
-  Ayrıca maç olaylarından doğrudan "Maçın Öne Çıkanları" (en çok gol, kurtarış,
-  pozisyon, blok) gösterilir; puanlama/formül kullanılmaz.
-- **Canlı yayın linki:** panelde girilen `match_video` (YouTube). Maç başlığında
-  "Canlı izle / Maçı izle" butonu olarak çıkar; maç canlıyken yayın sayfanın
-  üstüne gömülür, sonrasında "Yayın & Fotoğraflar" bölümünde oynatılır.
-- **Fotoğraf linki:** `match_images` (Yandex Disk/Drive albüm bağlantısı ya da tek tek
-  görseller). Albüm bağlantısı "Fotoğraflar" butonu olur, görseller galeride gösterilir.
-- **Röportaj:** `match_interview` / `post_roportaj`.
-- Bu bağlantılar ayrıca fikstür ve maç kartlarında küçük ikonlarla (▶ 📷 🎙),
-  takım sayfasındaki sonuç kartlarının ve oyuncu sayfasındaki maç maç kartlarının
-  altında buton olarak gösterilir.
-- **Enler takım/oyuncu sayfalarında:** maçın oyuncusu maç başlığında ve takımın sonuç
-  kartlarında; takım sayfasında oyuncuların topladığı enler ödülleri (kadro kartında 🏅
-  sayısı); oyuncu sayfasında maç maç kartlarında hangi ödülü aldığı ve toplam ödül sayısı.
+  Maç sayfasında büyük "Maçın Oyuncusu" kartı (fotoğraf, takım, maç içi istatistikleri)
+  ve mevki etiketli diğer enler kartları olarak gösterilir. Ayrıca maç olaylarından
+  doğrudan "Maçın Öne Çıkanları" (en çok gol, kurtarış, pozisyon, blok) çıkar.
+- **Canlı yayın / maç yayını:** `match_video`. Maç sayfasının üstünde gömülü oynatıcı;
+  maç canlıyken otomatik (sessiz) başlar, bittikten sonra kayıt olarak oynatılır. Maç
+  öncesinde ya da canlıyken bağlantı yoksa "yayın burada olacak" alanı görünür.
+- **Röportaj:** `match_interview` / `post_roportaj`, yayının yanında gömülü oynatıcı.
+- **Fotoğraflar:** `match_images`. Yandex Disk albüm bağlantısı girilirse fotoğraflar
+  Yandex'in herkese açık API'sinden çekilip sayfada galeri ve tam ekran görüntüleyiciyle
+  gösterilir (30 dk önbellek). Google Drive klasörü gömülü klasör görünümüyle, tek tek
+  görsel adresleri doğrudan galeride gösterilir.
+- Panele bağlantı yerine **embed kodu** (`<iframe src=...>`) yapıştırılsa da çalışır.
+  Desteklenen oynatıcılar: YouTube (watch, live, youtu.be, shorts, embed), Facebook,
+  Vimeo, Instagram, Twitch ve doğrudan embed adresleri.
+- Takım ve oyuncu sayfalarında "Yayınlar & Fotoğraflar" bölümü: maçların yayınları
+  (tıklayınca yerinde oynar) ve fotoğraf albümü kartları. Fikstür ve maç kartlarında
+  küçük ▶ 📷 🎙 ikonları, sonuç/maç kartlarının altında bu bölümlere giden butonlar var.
 
 ## Kullanılan elitlig-server uçları
 

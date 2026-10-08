@@ -221,4 +221,95 @@
     }, { rootMargin: '-30% 0px -60% 0px' });
     Object.keys(tmap).forEach(function (id) { var el = document.getElementById(id); if (el) tio.observe(el); });
   }
+  // ---- Video önizlemesi: tıklanınca oynatıcıyı yükle ----
+  function playFacade(el) {
+    var src = el.getAttribute('data-embed');
+    if (!src) return;
+    var iframe = document.createElement('iframe');
+    iframe.src = src + (src.indexOf('?') > -1 ? '&' : '?') + 'autoplay=1';
+    iframe.title = el.getAttribute('data-title') || 'Video';
+    iframe.allow = 'autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    el.innerHTML = '';
+    el.appendChild(iframe);
+    el.classList.remove('vfacade');
+    el.removeAttribute('role');
+    el.removeAttribute('tabindex');
+    el.removeAttribute('data-embed');
+  }
+  document.querySelectorAll('.vfacade').forEach(function (el) {
+    el.addEventListener('click', function () { playFacade(el); });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playFacade(el); }
+    });
+  });
+
+  // ---- Fotoğraf galerisi: tümünü göster + tam ekran görüntüleyici ----
+  document.querySelectorAll('[data-pgal-more]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var section = btn.closest('section');
+      section.querySelectorAll('.pgal-item[hidden]').forEach(function (a) { a.hidden = false; });
+      btn.parentNode.remove();
+    });
+  });
+  document.querySelectorAll('[data-lightbox]').forEach(function (gal) {
+    var items = Array.prototype.slice.call(gal.querySelectorAll('[data-lb-item]'));
+    if (!items.length) return;
+    var box, img, counter, current = 0, x0 = null;
+    function build() {
+      box = document.createElement('div');
+      box.className = 'lb';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      box.setAttribute('aria-label', 'Fotoğraf görüntüleyici');
+      box.innerHTML = '<button type="button" class="lb-close" aria-label="Kapat">✕</button>'
+        + '<button type="button" class="lb-nav lb-prev" aria-label="Önceki">‹</button>'
+        + '<figure class="lb-fig"><img alt=""><figcaption class="lb-count"></figcaption></figure>'
+        + '<button type="button" class="lb-nav lb-next" aria-label="Sonraki">›</button>';
+      document.body.appendChild(box);
+      img = box.querySelector('img');
+      img.referrerPolicy = 'no-referrer';
+      counter = box.querySelector('.lb-count');
+      box.querySelector('.lb-close').addEventListener('click', close);
+      box.querySelector('.lb-prev').addEventListener('click', function () { show(current - 1); });
+      box.querySelector('.lb-next').addEventListener('click', function () { show(current + 1); });
+      box.addEventListener('click', function (e) { if (e.target === box) close(); });
+      box.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+      box.addEventListener('touchend', function (e) {
+        if (x0 === null) return;
+        var dx = e.changedTouches[0].clientX - x0;
+        if (Math.abs(dx) > 40) show(current + (dx < 0 ? 1 : -1));
+        x0 = null;
+      });
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight') show(current + 1);
+      else if (e.key === 'ArrowLeft') show(current - 1);
+    }
+    function show(i) {
+      current = (i + items.length) % items.length;
+      img.src = items[current].getAttribute('href');
+      img.alt = items[current].querySelector('img').alt;
+      counter.textContent = (current + 1) + ' / ' + items.length;
+    }
+    function open(i) {
+      if (!box) build();
+      box.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', onKey);
+      show(i);
+      box.querySelector('.lb-close').focus();
+    }
+    function close() {
+      box.classList.remove('open');
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKey);
+      items[current].focus();
+    }
+    items.forEach(function (a, i) {
+      a.addEventListener('click', function (e) { e.preventDefault(); open(i); });
+    });
+  });
 })();

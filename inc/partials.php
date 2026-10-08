@@ -264,3 +264,88 @@ function match_media_flags(array $m): string
     }
     return $html !== '' ? '<span class="mflags">' . $html . '</span>' : '';
 }
+
+/**
+ * Gömülü oynatıcı. $facade true ise önce önizleme görseli gösterilir, tıklanınca
+ * oynatıcı yüklenir (sayfayı yavaşlatmaz). $kind: stream | live | interview.
+ */
+function render_embed(array $emb, string $title, string $kind = 'stream', bool $facade = true, string $poster = ''): string
+{
+    $cls = 'video' . (!empty($emb['tall']) ? ' video-tall' : '') . ' video-' . e($kind);
+    $caps = ['live' => '● CANLI', 'stream' => 'Maç yayını', 'interview' => 'Röportaj'];
+    $cap = '<span class="video-cap' . ($kind === 'live' ? ' is-live' : '') . '">' . e($caps[$kind] ?? $title) . '</span>';
+    $allow = 'autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+    $thumb = $emb['thumb'] !== '' ? $emb['thumb'] : $poster;
+    if (!$facade || $thumb === '') {
+        return '<div class="' . $cls . '"><iframe src="' . e($emb['src']) . '" title="' . e($title) . '"' . ($kind === 'live' ? '' : ' loading="lazy"')
+            . ' allow="' . $allow . '" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+    }
+    return '<div class="' . $cls . ' vfacade" role="button" tabindex="0" data-embed="' . e($emb['src']) . '" data-title="' . e($title) . '" aria-label="' . e($title . ' oynat') . '">'
+        . '<img src="' . e($thumb) . '" alt="" loading="lazy"><span class="vplay" aria-hidden="true"></span>' . $cap . '</div>';
+}
+
+/**
+ * Takım / oyuncu sayfaları için maçların yayınları ve fotoğraf albümleri.
+ * $matches: yeniden eskiye sıralı maçlar.
+ */
+function render_media_wall(array $matches, int $videoLimit = 6, int $albumLimit = 4): string
+{
+    $videos = [];
+    $albums = [];
+    foreach ($matches as $m) {
+        $label = (string) $m['first_team_name'] . ' ' . ((match_is_played($m) || match_is_live($m)) ? (int) $m['first_team_score'] . '-' . (int) $m['second_team_score'] : 'vs') . ' ' . (string) $m['second_team_name'];
+        if (count($videos) < $videoLimit) {
+            $stream = match_video_url($m);
+            $emb = $stream !== '' ? video_embed($stream) : null;
+            $kind = match_is_live($m) ? 'live' : 'stream';
+            if (!$emb) {
+                $iv = match_interview_url($m);
+                $emb = $iv !== '' ? video_embed($iv) : null;
+                $kind = 'interview';
+            }
+            if ($emb) {
+                $videos[] = [$m, $emb, $kind, $label];
+            }
+        }
+        if (count($albums) < $albumLimit && match_gallery($m)) {
+            $set = match_photo_set($m, 40);
+            $set['items'] = spread_items($set['items'], 4);
+            if ($set['items'] || $set['album'] !== '') {
+                $albums[] = [$m, $set, $label];
+            }
+        }
+    }
+    if (!$videos && !$albums) {
+        return '';
+    }
+    ob_start(); ?>
+    <?php if ($videos): ?>
+      <div class="vcards">
+        <?php foreach ($videos as [$m, $emb, $kind, $label]): ?>
+          <div class="vcard">
+            <?= render_embed($emb, $label, $kind) ?>
+            <a class="vcard-meta" href="<?= e(match_url((int) $m['id'])) ?>#yayin">
+              <strong><?= e($label) ?></strong>
+              <small><?= e(fmt_date($m)) ?> · <?= $kind === 'interview' ? 'Röportaj' : ($kind === 'live' ? 'Canlı yayın' : 'Maç yayını') ?></small>
+            </a>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <?php if ($albums): ?>
+      <div class="acards<?= $videos ? ' section-gap' : '' ?>">
+        <?php foreach ($albums as [$m, $set, $label]):
+          $internal = (bool) $set['items']; ?>
+          <a class="acard" href="<?= $internal ? e(match_url((int) $m['id'])) . '#fotograflar' : e($set['album']) ?>"<?= $internal ? '' : ' target="_blank" rel="noopener"' ?>>
+            <span class="acard-mosaic n<?= min(4, count($set['items'])) ?>">
+              <?php if ($set['items']): foreach (array_slice($set['items'], 0, 4) as $ph): ?><img src="<?= e($ph['thumb']) ?>" alt="" loading="lazy" referrerpolicy="no-referrer"><?php endforeach; else: ?><span class="acard-ico">📷</span><?php endif; ?>
+              <?php if ($set['total']): ?><b class="acard-count">📷 <?= (int) $set['total'] ?></b><?php endif; ?>
+            </span>
+            <span class="acard-meta"><strong><?= e($label) ?></strong><small><?= e(fmt_date($m)) ?> · Fotoğraflar</small></span>
+          </a>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <?php
+    return (string) ob_get_clean();
+}
