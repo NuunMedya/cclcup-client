@@ -6,6 +6,16 @@ function e($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * CSS/JS adresi + dosyanın değişme zamanı. Dosya güncellenince adres de
+ * değişir; tarayıcılar 7 günlük önbellekteki eski sürümü kullanmaz.
+ */
+function asset(string $path): string
+{
+    $mtime = @filemtime(__DIR__ . '/../' . $path);
+    return $path . '?v=' . ($mtime ?: '1');
+}
+
 function url(string $page, array $params = []): string
 {
     $params = array_filter($params, static function ($v) {
