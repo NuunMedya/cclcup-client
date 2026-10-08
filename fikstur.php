@@ -114,6 +114,7 @@ echo render_api_notice();
                 <?php if ($live): ?><span class="dot-live"></span> Canlı
                 <?php elseif ($played): ?>MS
                 <?php else: ?><?= e(fmt_time($m) ?: '—') ?><?php endif; ?>
+                <?= match_media_flags($m) ?>
               </span>
               <span class="fx-team fx-home<?= $hCls ?>"><span class="fx-name"><?= e($m['first_team_name']) ?></span><?= team_badge(team_logo($hId), (string) $m['first_team_name'], 'xs') ?></span>
               <span class="fx-score">

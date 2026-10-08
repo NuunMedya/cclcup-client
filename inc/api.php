@@ -434,16 +434,65 @@ function match_awards(array $m): array
         ];
         $out = [];
         foreach ($labels as $key => $label) {
+            $pid = (int) ($data[$key . '_id'] ?? 0);
             $name = trim((string) ($data[$key . '_name'] ?? $data[$key] ?? ''));
+            if ($name === '' || ctype_digit($name)) {
+                // Panel yalnızca id kaydettiyse isim sezon dizininden bulunur.
+                $name = $pid ? player_name($pid, '') : '';
+            }
             if ($name !== '') {
-                $out[$key] = ['label' => $label, 'name' => $name, 'id' => (int) ($data[$key . '_id'] ?? 0)];
+                $out[$key] = ['label' => $label, 'name' => $name, 'id' => $pid];
             }
         }
         if ($out) {
             return $out;
         }
     }
+    // Enler girilmemiş ama "maçın oyuncusu" (match_mvp) seçilmişse.
+    $mvp = (int) ($m['match_mvp'] ?? 0);
+    if ($mvp && ($name = player_name($mvp, '')) !== '') {
+        return ['best_player' => ['label' => 'Maçın Oyuncusu', 'name' => $name, 'id' => $mvp]];
+    }
     return [];
+}
+
+/**
+ * Maçın dışarıya açılan bağlantıları: canlı yayın (match_video), fotoğraf
+ * albümü (match_images) ve röportaj. Her biri: type, label, icon, url, external.
+ */
+function match_media_links(array $m): array
+{
+    $out = [];
+    $stream = match_video_url($m);
+    if ($stream !== '') {
+        $label = match_is_live($m) ? 'Canlı izle' : (match_is_played($m) ? 'Maçı izle' : 'Canlı yayın');
+        $out[] = ['type' => 'stream', 'label' => $label, 'icon' => '▶', 'url' => $stream, 'external' => true];
+    }
+    $photos = match_photos_url($m);
+    if ($photos !== '') {
+        $external = strpos($photos, 'http') === 0;
+        $out[] = ['type' => 'photos', 'label' => 'Fotoğraflar', 'icon' => '📷', 'url' => $photos, 'external' => $external];
+    }
+    $interview = match_interview_url($m);
+    if ($interview !== '' && $interview !== $stream) {
+        $out[] = ['type' => 'interview', 'label' => 'Röportaj', 'icon' => '🎙', 'url' => $interview, 'external' => true];
+    }
+    return $out;
+}
+
+/**
+ * Maç fotoğrafları: panelde albüm bağlantısı (Yandex Disk, Drive...) girildiyse
+ * o adres; yalnızca tek tek görseller girildiyse maç sayfasındaki galeri.
+ */
+function match_photos_url(array $m): string
+{
+    $gallery = match_gallery($m);
+    foreach ($gallery as $u) {
+        if (!is_image_url($u)) {
+            return $u;
+        }
+    }
+    return $gallery ? match_url((int) $m['id']) . '#medya' : '';
 }
 
 /** Oyuncunun bu sezondaki maç günlüğü (rakip, skor, puan, gol, asist...). */

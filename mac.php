@@ -27,7 +27,10 @@ $awards = match_awards($match);
 $highlights = $showScore ? highlights([$id]) : [];
 $cover = match_cover($match);
 $gallery = match_gallery($match);
-$videoId = youtube_id(match_video_url($match));
+$streamUrl = match_video_url($match);
+$videoId = youtube_id($streamUrl);
+$mediaLinks = match_media_links($match);
+$liveEmbed = $live && $videoId !== '';
 $interviewUrl = match_interview_url($match);
 $interviewId = youtube_id($interviewUrl);
 $possH = (int) ($match['first_team_percentage'] ?? 0);
@@ -232,19 +235,48 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
       </ul>
     </div>
     <?php endif; ?>
+
+    <?php if (isset($awards['best_player']) || $mediaLinks): ?>
+    <div class="mh-extras">
+      <?php if (isset($awards['best_player'])): $mvp = $awards['best_player']; ?>
+        <a class="mh-mvp" href="<?= $mvp['id'] ? e(player_url($mvp['id'])) : '#enler' ?>">
+          <?= player_avatar($mvp['id'] ? $pimg($mvp['id']) : null, $mvp['name'], 'xs') ?>
+          <span><small>Maçın Oyuncusu</small><b><?= e($mvp['name']) ?></b></span>
+        </a>
+      <?php endif; ?>
+      <?php if ($liveEmbed): ?>
+        <div class="mlinks mlinks-hero"><a class="mlink mlink-stream is-live" href="#yayin"><span class="mlink-ico" aria-hidden="true">▶</span>Canlı izle</a>
+          <?php foreach ($mediaLinks as $l): if ($l['type'] === 'stream') continue; ?>
+            <a class="mlink mlink-<?= e($l['type']) ?>" href="<?= e($l['url']) ?>"<?= $l['external'] ? ' target="_blank" rel="noopener"' : '' ?>><span class="mlink-ico" aria-hidden="true"><?= $l['icon'] ?></span><?= e($l['label']) ?></a>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <?= render_media_links($match, 'hero') ?>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
   </div>
 </header>
 
 <nav class="subnav" aria-label="Maç bölümleri">
   <div class="container subnav-inner">
+    <?php if ($liveEmbed): ?><a href="#yayin">Canlı Yayın</a><?php endif; ?>
     <?php if ($story): ?><a href="#haber">Maç Haberi</a><?php endif; ?>
+    <?php if ($showScore && $awards): ?><a href="#enler">Maçın Enleri</a><?php endif; ?>
     <?php if ($hasEvents): ?><a href="#akis">Maç Akışı</a><a href="#istatistik">İstatistikler</a><?php endif; ?>
     <a href="#kadrolar">Kadrolar</a>
     <?php if ($playerStats): ?><a href="#oyuncular">Oyuncu Performansları</a><?php endif; ?>
     <a href="#karsilastirma">Karşılaştırma</a>
-    <?php if ($videoId || $interviewUrl || $gallery): ?><a href="#medya">Medya</a><?php endif; ?>
+    <?php if ($mediaLinks): ?><a href="#medya">Yayın & Fotoğraflar</a><?php endif; ?>
   </div>
 </nav>
+
+<?php if ($liveEmbed): ?>
+<section class="container section" id="yayin">
+  <div class="section-head"><h2><span class="dot-live"></span> Canlı Yayın</h2><a class="more" href="<?= e($streamUrl) ?>" target="_blank" rel="noopener">YouTube'da aç →</a></div>
+  <div class="video video-live"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($videoId) ?>?autoplay=1&amp;mute=1" title="Canlı yayın" allow="autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+</section>
+<?php endif; ?>
 
 <?php if ($story): ?>
 <section class="container section" id="haber">
@@ -261,7 +293,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
 <?php endif; ?>
 
 <?php if ($showScore && ($awards || $highlights)): ?>
-<section class="container section">
+<section class="container section" id="enler">
   <?php if ($awards): ?>
     <div class="section-head"><h2>Maçın Enleri</h2></div>
     <div class="award-grid">
@@ -507,19 +539,16 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
   <?php endif; ?>
 </section>
 
-<?php if ($videoId || $interviewUrl || $gallery): ?>
+<?php if ($mediaLinks): ?>
 <section class="container section" id="medya">
-  <div class="section-head"><h2>Medya</h2></div>
-  <div class="media-grid">
-    <?php if ($videoId): ?>
-      <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($videoId) ?>" title="Maç videosu" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><span class="video-cap">Maç özeti</span></div>
-    <?php elseif (match_video_url($match)): ?>
-      <a class="btn" href="<?= e(match_video_url($match)) ?>" target="_blank" rel="noopener">▶ Maç videosunu izle</a>
+  <div class="section-head"><h2>Yayın & Fotoğraflar</h2></div>
+  <?= render_media_links($match) ?>
+  <div class="media-grid section-gap">
+    <?php if ($videoId && !$liveEmbed): ?>
+      <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($videoId) ?>" title="Maç yayını" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><span class="video-cap"><?= $played ? 'Maç yayını' : 'Canlı yayın' ?></span></div>
     <?php endif; ?>
-    <?php if ($interviewId): ?>
+    <?php if ($interviewId && $interviewUrl !== $streamUrl): ?>
       <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/<?= e($interviewId) ?>" title="Röportaj" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><span class="video-cap">Röportaj</span></div>
-    <?php elseif ($interviewUrl): ?>
-      <a class="btn btn-ghost" href="<?= e($interviewUrl) ?>" target="_blank" rel="noopener">🎙 Röportajı izle</a>
     <?php endif; ?>
   </div>
   <?php if ($gallery):
@@ -530,7 +559,7 @@ $marksHtml = static function (int $pid) use ($playerMarks) {
         <?php foreach ($images as $img): ?><a href="<?= e(media_url($img)) ?>" target="_blank" rel="noopener"><img src="<?= e(media_url($img, 640)) ?>" alt="Maçtan kare" loading="lazy"></a><?php endforeach; ?>
       </div>
     <?php endif; ?>
-    <?php foreach ($links as $l): ?><a class="btn btn-ghost" href="<?= e($l) ?>" target="_blank" rel="noopener">📷 Maç fotoğraflarının tamamı</a><?php endforeach; ?>
+    <?php foreach (array_slice($links, 1) as $l): ?><a class="btn btn-ghost btn-sm" href="<?= e($l) ?>" target="_blank" rel="noopener">📷 Diğer fotoğraf albümü</a><?php endforeach; ?>
   <?php endif; ?>
 </section>
 <?php endif; ?>

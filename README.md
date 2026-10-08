@@ -36,7 +36,18 @@ id'si verilirse sayfa 404 döner.
 - **Maçın enleri:** panelde seçilen en iyi oyuncu, kaleci, gol vb. (`post_enler`).
   Ayrıca maç olaylarından doğrudan "Maçın Öne Çıkanları" (en çok gol, kurtarış,
   pozisyon, blok) gösterilir; puanlama/formül kullanılmaz.
-- **Video, röportaj, galeri:** `match_video`, `match_interview`, `match_images`.
+- **Canlı yayın linki:** panelde girilen `match_video` (YouTube). Maç başlığında
+  "Canlı izle / Maçı izle" butonu olarak çıkar; maç canlıyken yayın sayfanın
+  üstüne gömülür, sonrasında "Yayın & Fotoğraflar" bölümünde oynatılır.
+- **Fotoğraf linki:** `match_images` (Yandex Disk/Drive albüm bağlantısı ya da tek tek
+  görseller). Albüm bağlantısı "Fotoğraflar" butonu olur, görseller galeride gösterilir.
+- **Röportaj:** `match_interview` / `post_roportaj`.
+- Bu bağlantılar ayrıca fikstür ve maç kartlarında küçük ikonlarla (▶ 📷 🎙),
+  takım sayfasındaki sonuç kartlarının ve oyuncu sayfasındaki maç maç kartlarının
+  altında buton olarak gösterilir.
+- **Enler takım/oyuncu sayfalarında:** maçın oyuncusu maç başlığında ve takımın sonuç
+  kartlarında; takım sayfasında oyuncuların topladığı enler ödülleri (kadro kartında 🏅
+  sayısı); oyuncu sayfasında maç maç kartlarında hangi ödülü aldığı ve toplam ödül sayısı.
 
 ## Kullanılan elitlig-server uçları
 

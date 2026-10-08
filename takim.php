@@ -51,6 +51,27 @@ usort($squad, static function ($a, $b) use ($posOrder) {
     $pb = $posOrder[position_short($b['position'] ?? '')] ?? 4;
     return $pa <=> $pb ?: ($b['matchesPlayed'] <=> $a['matchesPlayed']) ?: tr_compare($a['playerName'], $b['playerName']);
 });
+// Maçın enleri: takımın oyuncularının panelden aldığı ödüller
+$squadIds = array_flip(array_map('intval', array_column($squad, 'playerId')));
+$teamAwards = [];
+foreach ($results as $r) {
+    foreach (match_awards($r['match']) as $key => $aw) {
+        if (!$aw['id'] || !isset($squadIds[$aw['id']])) continue;
+        $pid = $aw['id'];
+        if (!isset($teamAwards[$pid])) {
+            $teamAwards[$pid] = ['id' => $pid, 'name' => $aw['name'], 'total' => 0, 'mvp' => 0, 'labels' => []];
+        }
+        $teamAwards[$pid]['total']++;
+        $teamAwards[$pid]['mvp'] += $key === 'best_player' ? 1 : 0;
+        $teamAwards[$pid]['labels'][$aw['label']] = ($teamAwards[$pid]['labels'][$aw['label']] ?? 0) + 1;
+    }
+}
+uasort($teamAwards, static function ($a, $b) {
+    return [$b['mvp'], $b['total']] <=> [$a['mvp'], $a['total']] ?: tr_compare($a['name'], $b['name']);
+});
+$squadById = [];
+foreach ($squad as $pl) $squadById[(int) $pl['playerId']] = $pl;
+
 $leader = static function (array $squad, string $field) {
     $best = null;
     foreach ($squad as $p) {
@@ -117,7 +138,7 @@ echo render_api_notice();
 
 <nav class="subnav" aria-label="Takım bölümleri">
   <div class="container subnav-inner">
-    <a href="#genel">Genel Bakış</a><a href="#maclar">Maçlar</a><a href="#analiz">Gol Analizi</a><a href="#kadro">Kadro</a>
+    <a href="#genel">Genel Bakış</a><?php if ($teamAwards): ?><a href="#oduller">Ödüller</a><?php endif; ?><a href="#maclar">Maçlar</a><a href="#analiz">Gol Analizi</a><a href="#kadro">Kadro</a>
     <?php if (!empty($details['history']) || !empty($details['achievements'])): ?><a href="#hakkinda">Hakkında</a><?php endif; ?>
   </div>
 </nav>
@@ -180,6 +201,26 @@ echo render_api_notice();
       </a>
     <?php endforeach; ?>
   </div>
+
+  <?php if ($teamAwards): ?>
+  <div class="card section-gap" id="oduller">
+    <div class="section-head"><h3>Maçın Enleri Ödülleri</h3><span class="muted small"><?= array_sum(array_column($teamAwards, 'total')) ?> ödül</span></div>
+    <div class="taward-grid">
+      <?php foreach ($teamAwards as $ta): ?>
+        <a class="taward" href="<?= e(player_url($ta['id'])) ?>">
+          <?= player_avatar($squadById[$ta['id']]['playerImage'] ?? null, $ta['name'], 'md') ?>
+          <span class="taward-text">
+            <strong><?= e($ta['name']) ?></strong>
+            <span class="taward-chips">
+              <?php foreach ($ta['labels'] as $label => $n): ?><span class="mc mc-award"><?= e($label) ?><?= $n > 1 ? ' <b>×' . $n . '</b>' : '' ?></span><?php endforeach; ?>
+            </span>
+          </span>
+          <b class="taward-count" title="Toplam ödül">🏅 <?= $ta['total'] ?></b>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
 </section>
 
 <section class="container section" id="maclar">
@@ -190,7 +231,11 @@ echo render_api_notice();
         <div class="empty-state"><p>Henüz oynanmış maç yok.</p></div>
       <?php else: ?>
         <div class="rcards">
-          <?php foreach (array_reverse($results) as $r): $m = $r['match']; ?>
+          <?php foreach (array_reverse($results) as $r): $m = $r['match'];
+            $mAwards = match_awards($m);
+            $mvp = $mAwards['best_player'] ?? null;
+            $links = render_media_links($m, 'sm'); ?>
+            <div class="rcard-wrap<?= $mvp || $links ? ' has-foot' : '' ?>">
             <a class="rcard rcard-<?= e($r['res']) ?>" href="<?= e(match_url((int) $m['id'])) ?>">
               <span class="rcard-top"><span class="form form-<?= ['w' => 'win', 'd' => 'draw', 'l' => 'loss'][$r['res']] ?>"><?= ['w' => 'G', 'd' => 'B', 'l' => 'M'][$r['res']] ?></span><?= e(fmt_date($m)) ?></span>
               <span class="rcard-body">
@@ -199,6 +244,13 @@ echo render_api_notice();
                 <span class="rcard-team"><?= team_badge(team_logo((int) $m['away_team_id']), $m['second_team_name'], 'md') ?><small><?= e($m['second_team_name']) ?></small></span>
               </span>
             </a>
+            <?php if ($mvp || $links): ?>
+              <div class="rcard-foot">
+                <?php if ($mvp): ?><a class="rcard-mvp" href="<?= $mvp['id'] ? e(player_url($mvp['id'])) : e(match_url((int) $m['id'])) . '#enler' ?>" title="Maçın Oyuncusu">⭐ <?= e($mvp['name']) ?></a><?php endif; ?>
+                <?= $links ?>
+              </div>
+            <?php endif; ?>
+            </div>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
@@ -206,7 +258,7 @@ echo render_api_notice();
     <div>
       <div class="section-head"><h2>Fikstür</h2></div>
       <?php if ($upcoming): ?>
-        <div class="match-list"><?php foreach ($upcoming as $m) echo render_match_card($m); ?></div>
+        <div class="match-list"><?php foreach ($upcoming as $m) echo render_match_card($m) . render_media_links($m, 'sm'); ?></div>
       <?php else: ?>
         <div class="empty-state"><p>Planlanmış maç yok. Yeni fikstür açıklandığında burada görünecek.</p></div>
       <?php endif; ?>
@@ -306,6 +358,7 @@ echo render_api_notice();
         <?php foreach ($byPos[$k] as $pl): ?>
           <a class="squad-card" href="<?= e(player_url((int) $pl['playerId'])) ?>">
             <span class="squad-photo"><?= player_avatar($pl['playerImage'] ?? null, $pl['playerName'], 'squad') ?></span>
+            <?php if (isset($teamAwards[(int) $pl['playerId']])): ?><span class="squad-award" title="Maçın enleri ödülü">🏅 <?= $teamAwards[(int) $pl['playerId']]['total'] ?></span><?php endif; ?>
             <strong><?= e($pl['playerName']) ?></strong>
             <span class="squad-stats"><span><b><?= (int) $pl['matchesPlayed'] ?></b> maç</span><span><b><?= (int) $pl['totalGoals'] ?></b> gol</span><?php if ((int) $pl['saves']): ?><span><b><?= (int) $pl['saves'] ?></b> kurt.</span><?php else: ?><span><b><?= (int) $pl['assists'] ?></b> asist</span><?php endif; ?></span>
           </a>
