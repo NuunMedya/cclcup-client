@@ -8,6 +8,7 @@ require_once __DIR__ . '/api.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/partials.php';
 require_once __DIR__ . '/stats.php';
+require_once __DIR__ . '/cup.php';
 
 $GLOBALS['ccl_api_errors'] = [];
 

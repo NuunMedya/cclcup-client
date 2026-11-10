@@ -1474,3 +1474,83 @@ a.bc-link .bc-ico { display: inline-grid; place-items: center; width: 64px; heig
 .lb-close:hover, .lb-nav:hover { background: rgba(255, 255, 255, .24); }
 @media (max-width: 640px) { .lb { padding: 56px 8px; } .lb-nav { top: auto; bottom: 14px; margin-top: 0; } .lb-prev { left: calc(50% - 60px); } .lb-next { right: calc(50% - 60px); } }
 .mlink small { font-weight: 600; opacity: .75; }
+
+/* =====================================================================
+   Kupa yolu — eleme etapları (Altın Kupa, Gümüş Kupa ...)
+   ===================================================================== */
+.tone-gold { --cup: #f5b51b; --cup-soft: rgba(245, 181, 27, .14); --cup-ink: #9a6a00; }
+.tone-silver { --cup: #9aa6bf; --cup-soft: rgba(154, 166, 191, .18); --cup-ink: #56617a; }
+.tone-bronze { --cup: #c27a3a; --cup-soft: rgba(194, 122, 58, .16); --cup-ink: #8a4f1d; }
+@media (prefers-color-scheme: dark) {
+  .tone-gold { --cup-ink: #ffd56b; }
+  .tone-silver { --cup: #c3cbdc; --cup-ink: #dde3ef; }
+  .tone-bronze { --cup-ink: #e7a76f; }
+}
+.tab-cup { display: inline-flex; align-items: center; gap: 6px; }
+.tab-trophy { font-size: .9em; }
+.tab-cup.active { background: var(--cup); color: #0a1230; }
+.cup-card { border-top: 3px solid var(--cup); }
+.cup-home .section-head { flex-wrap: wrap; align-items: center; }
+.cup-home .cup-tabs { margin-bottom: 0; }
+.cup-sub { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; font-family: var(--display); text-transform: uppercase; color: var(--cup-ink); }
+.legend .lg-win, .legend .lg-out { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.legend .lg-win { background: var(--cup, var(--gold)); }
+.legend .lg-out { background: var(--border); }
+
+.bracket-scroll { overflow-x: auto; margin: 0 -18px; padding: 4px 18px 8px; scrollbar-width: thin; }
+.bracket { --br-gap: 28px; --br-line: var(--border); display: flex; gap: var(--br-gap); }
+.br-col { display: flex; flex-direction: column; flex: 1 1 200px; min-width: 186px; max-width: 280px; }
+.bracket.is-compact .br-col { flex-basis: 186px; }
+.br-head { text-align: center; font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .9rem; color: var(--cup-ink); background: var(--cup-soft); border-radius: 999px; padding: 4px 10px; margin-bottom: 10px; white-space: nowrap; }
+.br-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
+.br-pair { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; position: relative; }
+.br-cell { flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative; }
+.br-col.joins .br-pair::after {
+  content: ""; position: absolute; right: calc(var(--br-gap) / -2); width: calc(var(--br-gap) / 2);
+  top: 25%; bottom: 25%; border: 2px solid var(--br-line); border-left: 0; border-radius: 0 8px 8px 0; pointer-events: none;
+}
+.br-col.fed .br-cell::before {
+  content: ""; position: absolute; left: calc(var(--br-gap) / -2); width: calc(var(--br-gap) / 2); top: 50%; border-top: 2px solid var(--br-line);
+}
+.br-champ.fed .br-cell::before { left: calc(var(--br-gap) * -1); width: var(--br-gap); border-top-color: var(--cup); }
+
+/* Eşleşme kutusu */
+.bm { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(10, 18, 48, .05); transition: border-color .15s, transform .15s; }
+a.bm:hover { border-color: var(--cup, var(--accent)); color: inherit; transform: translateY(-1px); }
+.bm.is-live { border-color: var(--red); box-shadow: 0 0 0 2px rgba(229, 56, 59, .18); }
+.bm-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; min-height: 38px; }
+.bm-row + .bm-row { border-top: 1px solid var(--border); }
+.bm-row .badge { flex: none; }
+.bm-name { flex: 1; min-width: 0; font-weight: 600; font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-score { flex: none; min-width: 22px; text-align: right; font-family: var(--display); font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.bm-row.is-win { background: var(--cup-soft, var(--surface-2)); }
+.bm-row.is-win .bm-name { font-weight: 800; }
+.bm-row.is-win .bm-score { color: var(--cup-ink, var(--text)); }
+.bm-row.is-out .bm-name, .bm-row.is-out .bm-score { color: var(--muted); }
+.bm-row.is-out .badge { opacity: .55; filter: grayscale(.6); }
+.bm-row.is-tbd .bm-name { font-weight: 500; font-style: italic; color: var(--muted); font-size: .8rem; }
+.bm-q { flex: none; width: 26px; height: 26px; border-radius: 6px; border: 1px dashed var(--border); display: grid; place-items: center; font-size: .75rem; color: var(--muted); }
+.bm-tag { flex: none; font-size: .62rem; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: var(--cup, var(--gold)); color: #0a1230; }
+.bm-meta { display: block; padding: 4px 10px; font-size: .7rem; color: var(--muted); background: var(--surface-2); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Şampiyon */
+.br-champ { flex: 0 0 150px; min-width: 150px; }
+.champ { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 14px 10px; border-radius: 14px; border: 2px dashed var(--border); background: var(--surface-2); }
+.champ.is-set { border: 2px solid var(--cup); background: linear-gradient(180deg, var(--cup-soft), transparent); }
+.champ a { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.champ-cup { font-size: 2rem; line-height: 1; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .15)); }
+.champ:not(.is-set) .champ-cup { filter: grayscale(1); opacity: .5; }
+.champ strong { font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; }
+.champ small { color: var(--muted); font-size: .72rem; }
+.champ-name { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cup-ink); }
+
+/* Tur listeleri */
+.stage-card { margin-top: 16px; }
+.stage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.stage-item { display: flex; flex-direction: column; gap: 4px; }
+.stage-no { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 640px) {
+  .bracket { --br-gap: 24px; }
+  .br-col, .bracket.is-compact .br-col { flex-basis: 180px; }
+  .bracket-scroll { margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+}

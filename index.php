@@ -156,6 +156,31 @@ echo render_api_notice();
 </section>
 <?php endif; ?>
 
+<?php $cups = ccl_cups(); if ($cups): ?>
+<section class="container section">
+  <div class="card cup-card cup-home">
+    <div class="section-head">
+      <h2><span aria-hidden="true">🏆</span> Kupa Yolu</h2>
+      <?php if (count($cups) > 1): ?>
+        <div class="tabs scroll cup-tabs" role="tablist">
+          <?php foreach ($cups as $i => $c): ?>
+            <button type="button" class="tab tab-cup tone-<?= e($c['tone']) ?><?= $i === 0 ? ' active' : '' ?>" role="tab" aria-selected="<?= $i === 0 ? 'true' : 'false' ?>" data-tab-target="cup-<?= e($c['key']) ?>"><?= e($c['name']) ?></button>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <a class="more" href="<?= e(url('puan-durumu.php', ['grup' => $cups[0]['key']])) ?>">Tüm eşleşmeler →</a>
+      <?php endif; ?>
+    </div>
+    <?php foreach ($cups as $i => $c): ?>
+      <div id="cup-<?= e($c['key']) ?>" class="tone-<?= e($c['tone']) ?>"<?= $i === 0 ? '' : ' hidden' ?>>
+        <?php if (count($cups) > 1): ?><div class="cup-sub"><strong><?= e($c['name']) ?></strong><a class="more" href="<?= e(url('puan-durumu.php', ['grup' => $c['key']])) ?>">Tüm eşleşmeler →</a></div><?php endif; ?>
+        <?= render_cup_bracket($c, true) ?>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <?php if ($dayHighlights): ?>
 <section class="container section">
   <div class="section-head"><h2>Maç Gününün Öne Çıkanları</h2><span class="muted small"><?= e(fmt_date(['date' => $lastDate])) ?></span></div>

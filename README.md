@@ -12,11 +12,11 @@ girildiği anda bu sitede de görünür (en fazla `cache_ttl` saniye gecikmeyle)
 
 | Sayfa | İçerik |
 |---|---|
-| `index.php` | Dönen **manşet** (maç haberleri, kapak fotoğrafları), skor bandı, sezon rakamları, sıradaki maç geri sayımı, maç gününün öne çıkanları, puan durumu, gol/asist/kurtarış liderleri, turnuva rekorları, gol dakika ve tür grafikleri, haber kartları |
+| `index.php` | Eleme etapları tanımlıysa **Kupa Yolu** (kupa sekmeli eleme ağacı), dönen **manşet** (maç haberleri, kapak fotoğrafları), skor bandı, sezon rakamları, sıradaki maç geri sayımı, maç gününün öne çıkanları, puan durumu, gol/asist/kurtarış liderleri, turnuva rekorları, gol dakika ve tür grafikleri, haber kartları |
 | `haberler.php` | Tüm maç haberleri; panelden CCL CUP ligi için yazılan haberler (`?haber=`) |
 | `fikstur.php` | Sade fikstür: gün gün maç listesi (gün başına maç/gol özeti), Tümü / Sonuçlar / Fikstür seçici, takım filtresi |
 | `kurallar` (`kurallar.php`) | Turnuva kuralları ve katılım şartları: özet kartlar, içindekiler, arama, yazdırma. Metin `inc/rules.php` içinde |
-| `puan-durumu.php` | Detaylı puan tablosu (sezonda grup varsa grup sekmeleri) |
+| `puan-durumu.php` | Detaylı puan tablosu (sezonda grup varsa grup sekmeleri). Eleme etapları varsa her kupa (Altın Kupa, Gümüş Kupa …) ayrı sekmede: eleme ağacı (kupa yolu) ve tur tur eşleşmeler (`?grup=kupa-<ilk etap id>`) |
 | `takimlar.php` | Takım kartları |
 | `takim.php?id=` | Takım profili: son maçlar şeridi, G/B/M dağılımı, sıralama grafiği, iç saha/deplasman, rekorlar, takım liderleri, sonuç kartları, gol analizi, takımın golcüleri, mevkilere göre fotoğraflı kadro, tarihçe/başarılar |
 | `mac.php?id=` | Maç detayı: kapak, otomatik ya da panelden girilen maç haberi, golcüler, ilk yarı skoru, maçın enleri ve öne çıkanları, sade maç akışı, maç/devre bazlı istatistikler, profil fotoğraflı saha dizilişi, kadrolar, oyuncu performans tabloları, form karşılaştırması, video/röportaj/galeri |
@@ -51,6 +51,16 @@ id'si verilirse sayfa 404 döner.
 - Takım ve oyuncu sayfalarında "Yayınlar & Fotoğraflar" bölümü: maçların yayınları
   (tıklayınca yerinde oynar) ve fotoğraf albümü kartları. Fikstür ve maç kartlarında
   küçük ▶ 📷 🎙 ikonları, sonuç/maç kartlarının altında bu bölümlere giden butonlar var.
+
+### Kupalar / eleme etapları
+
+elitlig panelindeki *Gruplar & Etaplar* kurgusundan okunur (`inc/cup.php`). Türü
+"etap" olan gruplar kupalara ayrılır: kontenjanları bir önceki etabın eşleşme
+galiplerinden gelen etaplar aynı kupanın ardışık turlarıdır (Son 16 → Çeyrek Final
+→ Yarı Final → Final). Lig sıralamasından, doğrudan takımdan ya da başka bir etabın
+mağluplarından beslenen etap yeni bir kupa başlatır. Kupa adı tur adlarının ortak
+önekidir ("ALTIN KUPA SON 16" → "ALTIN KUPA"); adında Altın/Gümüş/Bronz geçen kupa
+o renkte gösterilir. Panelde "ağaçta göster" kapalı olan etaplar sitede görünmez.
 
 ## Kullanılan elitlig-server uçları
 
