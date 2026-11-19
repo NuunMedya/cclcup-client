@@ -57,8 +57,9 @@ id'si verilirse sayfa 404 döner.
 elitlig panelindeki *Gruplar & Etaplar* kurgusundan okunur (`inc/cup.php`). Türü
 "etap" olan gruplar kupalara ayrılır: kontenjanları bir önceki etabın eşleşme
 galiplerinden gelen etaplar aynı kupanın ardışık turlarıdır (Son 16 → Çeyrek Final
-→ Yarı Final → Final). Lig sıralamasından, doğrudan takımdan ya da başka bir etabın
-mağluplarından beslenen etap yeni bir kupa başlatır. Kupa adı tur adlarının ortak
+→ Yarı Final → Final). Kontenjanların bir kısmı başka kaynaktan gelse de (ör. Ön
+Eleme galipleri + doğrudan katılanlar → Çeyrek Final) tur aynı kupada kalır. Hiçbir
+kontenjanı başka bir etabın galibinden gelmeyen etap yeni bir kupa başlatır. Kupa adı tur adlarının ortak
 önekidir ("ALTIN KUPA SON 16" → "ALTIN KUPA"); adında Altın/Gümüş/Bronz geçen kupa
 o renkte gösterilir. Panelde "ağaçta göster" kapalı olan etaplar sitede görünmez.
 
