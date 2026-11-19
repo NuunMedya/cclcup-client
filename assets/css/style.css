@@ -1512,6 +1512,9 @@ a.bc-link .bc-ico { display: inline-grid; place-items: center; width: 64px; heig
 .br-col.fed .br-cell::before {
   content: ""; position: absolute; left: calc(var(--br-gap) / -2); width: calc(var(--br-gap) / 2); top: 50%; border-top: 2px solid var(--br-line);
 }
+.br-col.straight .br-cell::after {
+  content: ""; position: absolute; right: calc(var(--br-gap) * -1); width: var(--br-gap); top: 50%; border-top: 2px solid var(--br-line); pointer-events: none;
+}
 .br-champ.fed .br-cell::before { left: calc(var(--br-gap) * -1); width: var(--br-gap); border-top-color: var(--cup); }
 
 /* Eşleşme kutusu */

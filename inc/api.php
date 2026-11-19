@@ -244,7 +244,7 @@ function ccl_standings(?int $groupId = null): array
 function ccl_groups(): array
 {
     $s = ccl_scope();
-    $data = api_try('/api/season-groups/season/' . $s['seasonId'], [], 300, []);
+    $data = api_try('/api/season-groups/season/' . $s['seasonId'], [], null, []);
     $groups = is_array($data['groups'] ?? null) ? $data['groups'] : [];
     return [
         'settings' => $data['settings'] ?? [],

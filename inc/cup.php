@@ -75,16 +75,17 @@ function ccl_cups(): array
         return $cups;
     }
 
-    // Etabın bir önceki turu: kontenjanlarının galibini aldığı tek etap.
+    // Etabın bir önceki turu: kontenjanlarına galip gönderen tek etap. Diğer
+    // kontenjanlar başka kaynaklardan (lig sırası, başka kupanın mağlupları ...)
+    // gelebilir: ön elemeyi geçenlerin doğrudan katılanlarla eşleştiği tur da
+    // ön elemenin devamıdır.
     $parentOf = [];
     foreach ($stages as $id => $g) {
         $sources = [];
         foreach ($g['slots'] ?? [] as $slot) {
-            if (($slot['source_type'] ?? '') === 'MATCH_WINNER' && isset($stages[(int) $slot['source_group_id']])) {
-                $sources[(int) $slot['source_group_id']] = true;
-            } else {
-                $sources = [];
-                break;
+            $src = (int) ($slot['source_group_id'] ?? 0);
+            if (($slot['source_type'] ?? '') === 'MATCH_WINNER' && $src !== $id && isset($stages[$src])) {
+                $sources[$src] = true;
             }
         }
         $parentOf[$id] = count($sources) === 1 ? (int) key($sources) : 0;
@@ -216,11 +217,42 @@ function cup_order_matchups(array $stages): array
     return $stages;
 }
 
+/**
+ * Önceki turun her eşleşmesi sonraki turda aynı sıradaki eşleşmeye tek galip
+ * gönderiyorsa (ön eleme → bekleyen takımlı tur) true.
+ */
+function cup_stage_feeds_one_to_one(array $prev, array $next): bool
+{
+    if (!$prev['matchups'] || count($prev['matchups']) !== count($next['matchups'])) {
+        return false;
+    }
+    $prevId = (int) $prev['group']['id'];
+    $slotById = [];
+    foreach ($next['group']['slots'] ?? [] as $slot) {
+        $slotById[(int) $slot['id']] = $slot;
+    }
+    foreach ($next['matchups'] as $i => $nm) {
+        $feeders = [];
+        foreach (['home_slot_id', 'away_slot_id'] as $k) {
+            $slot = $slotById[(int) ($nm[$k] ?? 0)] ?? null;
+            if ($slot && ($slot['source_type'] ?? '') === 'MATCH_WINNER' && (int) $slot['source_group_id'] === $prevId) {
+                $feeders[] = (int) $slot['source_matchup'];
+            }
+        }
+        if (count($feeders) !== 1 || (int) ($prev['matchups'][$i]['index'] ?? 0) !== $feeders[0]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /** Kupa, anahtar ya da içindeki bir etabın id'si ile bulunur. */
 function ccl_cup_find(string $key): ?array
 {
+    // "kupa-<etap id>" ya da yalnızca etap id'si: kupanın herhangi bir turu olabilir.
+    $id = strpos($key, 'kupa-') === 0 ? substr($key, 5) : $key;
     foreach (ccl_cups() as $cup) {
-        if ($cup['key'] === $key || (ctype_digit($key) && in_array((int) $key, $cup['group_ids'], true))) {
+        if ($cup['key'] === $key || (ctype_digit($id) && in_array((int) $id, $cup['group_ids'], true))) {
             return $cup;
         }
     }
@@ -377,8 +409,10 @@ function render_cup_bracket(array $cup, bool $compact = false): string
             $count = count($st['matchups']);
             $nextCount = isset($stages[$i + 1]) ? count($stages[$i + 1]['matchups']) : 0;
             $joins = $nextCount > 0 && $count === $nextCount * 2;
-            $fed = $i > 0 && count($stages[$i - 1]['matchups']) === $count * 2; ?>
-          <div class="br-col<?= $joins ? ' joins' : '' ?><?= $fed ? ' fed' : '' ?>">
+            $fed = $i > 0 && count($stages[$i - 1]['matchups']) === $count * 2;
+            // Ön eleme: her eşleşmenin galibi sonraki turda bekleyen bir takımla eşleşir.
+            $straight = isset($stages[$i + 1]) && cup_stage_feeds_one_to_one($st, $stages[$i + 1]); ?>
+          <div class="br-col<?= $joins ? ' joins' : '' ?><?= $fed ? ' fed' : '' ?><?= $straight ? ' straight' : '' ?>">
             <div class="br-head"><?= e($st['label']) ?></div>
             <div class="br-body">
               <?php if ($joins): foreach (array_chunk($st['matchups'], 2) as $pair): ?>
